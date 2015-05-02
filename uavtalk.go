@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/GeertJohan/go.hid"
 )
@@ -16,26 +17,6 @@ type UAVTalkObject struct {
 	instanceId uint16
 	data       []byte
 	cks        uint8
-}
-
-func (uavTalkObject *UAVTalkObject) isComplete() bool {
-	return int(uavTalkObject.length) <= (len(uavTalkObject.data) + 10)
-}
-
-func (uavTalkObject *UAVTalkObject) appendBuffer(buffer []byte) ([]byte, error) {
-	var requiredSize = int(uavTalkObject.length) - 10
-	var left = requiredSize - len(uavTalkObject.data)
-
-	//fmt.Printf("length: %d\ndataSize: %d\nbufferSize: %d\nrequiredSize: %d\nleft: %d\n\n", uavTalkObject.length, len(uavTalkObject.data), len(buffer), requiredSize, left)
-	if left > len(buffer) {
-		left = len(buffer)
-	} else {
-		//fmt.Printf("%d - %d = %d\n", len(buffer), left, len(buffer)-left)
-		uavTalkObject.cks = buffer[left]
-	}
-
-	uavTalkObject.data = append(uavTalkObject.data, buffer[:left]...)
-	return buffer[left:], nil
 }
 
 func byteArrayToInt32(b []byte) uint32 {
@@ -54,75 +35,92 @@ func byteArrayToInt16(b []byte) uint16 {
 	return (uint16(b[1]) << 8) | (uint16(b[0]))
 }
 
-func newUAVTalkObject(buffer []byte) (*UAVTalkObject, []byte, error) {
-	offset := 2
+func packetComplete(packet []byte) (bool, int) {
+	if packet[0] != 0x3c {
+		return false, 0
+	}
 
-	if buffer[offset] != 0x3c {
-		return nil, nil, errors.New("Wrong Sync val xP")
+	length := byteArrayToInt16(packet[2:4])
+
+	if int(length)+1 > len(packet) {
+		return false, 0
+	}
+
+	cks := packet[length]
+
+	// check cks
+	// fmt.Printf("%d %d\n", uint8(cks), computeCrc8(0, packet[0:length]))
+
+	if cks != computeCrc8(0, packet[0:length]) {
+		return false, 0
+	}
+
+	return true, int(length) + 1
+}
+
+func newUAVTalkObject(packet []byte) (*UAVTalkObject, error) {
+	if packet[0] != 0x3c {
+		return nil, errors.New("Wrong Sync val xP")
 	}
 
 	uavTalkObject := &UAVTalkObject{}
 
-	uavTalkObject.cmd = buffer[offset+1] ^ VER_MASK
-	uavTalkObject.length = byteArrayToInt16(buffer[offset+2 : offset+4])
-	uavTalkObject.objectId = byteArrayToInt32(buffer[offset+4 : offset+8])
-	uavTalkObject.instanceId = byteArrayToInt16(buffer[offset+8 : offset+10])
+	uavTalkObject.cmd = packet[1] ^ VER_MASK
+	uavTalkObject.length = byteArrayToInt16(packet[2:4])
+	uavTalkObject.objectId = byteArrayToInt32(packet[4:8])
+	uavTalkObject.instanceId = byteArrayToInt16(packet[8:10])
 
-	left, err := uavTalkObject.appendBuffer(buffer)
-	if err != nil {
-		return nil, nil, err
-	}
+	uavTalkObject.data = make([]byte, uavTalkObject.length-10)
+	copy(uavTalkObject.data, packet[10:len(packet)-1])
+
+	uavTalkObject.cks = packet[len(packet)-1]
 
 	//fmt.Println(uavTalkObject)
 
-	return uavTalkObject, left, nil
+	return uavTalkObject, nil
 }
 
 func printHex(buffer []byte, n int) {
+	fmt.Println("start packet:")
 	for i := 0; i < n; i++ {
 		if i > 0 {
 			fmt.Print(":")
 		}
 		fmt.Printf("%.02x", buffer[i])
 	}
-	fmt.Println()
+	fmt.Println("\nend packet")
 }
 
 func startHID(c chan *UAVTalkObject) {
 	cc, err := hid.Open(0x20a0, 0x415b, "")
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer cc.Close()
 
-	var uavTalkObject *UAVTalkObject
-	var left = make([]byte, 64)
+	buffer := make([]byte, 64)
+	packet := make([]byte, 0, 4096)
 	for {
-		buffer := make([]byte, 64)
 		n, err := cc.Read(buffer)
 		if err != nil {
 			panic(err)
 		}
 
-		//printHex(buffer[0:n], n)
+		packet = append(packet[len(packet):], buffer[2:n]...)
 
-		if uavTalkObject == nil {
-			uavTalkObject, left, err = newUAVTalkObject(buffer[0:n])
-			if err != nil {
-				fmt.Println(err)
-				continue
+		for {
+			ok, n := packetComplete(packet)
+			if ok != true {
+				break
 			}
-		} else {
-			left, err := uavTalkObject.appendBuffer(buffer[0:n])
-			if err != nil {
+			//printHex(packet[:n], n)
+			if uavTalkObject, err := newUAVTalkObject(packet[:n]); err == nil {
+				c <- uavTalkObject
+			} else {
 				fmt.Println(err)
-				continue
 			}
-		}
-
-		if uavTalkObject != nil && uavTalkObject.isComplete() {
-			c <- uavTalkObject
-			uavTalkObject = nil
+			copy(packet, packet[n:])
+			packet = packet[0 : len(packet)-n]
 		}
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 )
 
 var definitions []*UAVObjectDefinition
@@ -15,6 +16,7 @@ type UAVObjectFieldDefinition struct {
 	Type         string `xml:"type,attr"`
 	Elements     int    `xml:"elements,attr"`
 	ElementNames string `xml:"elementnames,attr"`
+	Options      string `xml:"options,attr"`
 	DefaultValue string `xml:"defaultvalue,attr"`
 }
 
@@ -49,7 +51,7 @@ type UAVObjectDefinition struct {
 		Period     string `xml:"period,attr"`
 	} `xml:"logging"`
 
-	Fields []UAVObjectFieldDefinition `xml:"field"`
+	Fields []*UAVObjectFieldDefinition `xml:"field"`
 }
 
 func (*UAVObjectDefinition) jsonCreateObject() string {
@@ -61,6 +63,15 @@ func (*UAVObjectDefinition) uAVTalkToJSON([]byte) string {
 }
 
 func (*UAVObjectDefinition) jSONtoUAVTalk(string) []byte {
+	return nil
+}
+
+func getUAVObjectDefinitionForObjectID(objectID uint32) *UAVObjectDefinition {
+	for _, uavdef := range definitions {
+		if uavdef.ObjectID == objectID {
+			return uavdef
+		}
+	}
 	return nil
 }
 
@@ -89,8 +100,18 @@ func parseUAVObjectDefinition(filePath string) error {
 		UAVObject *UAVObjectDefinition `xml:"object"`
 	}{}
 	decoder.Decode(content)
-	definitions = append(definitions, content.UAVObject)
 
-	//fmt.Println(content.UAVObject)
+	uavObject := content.UAVObject
+
+	for _, field := range uavObject.Fields {
+		if len(field.ElementNames) > 0 {
+			field.Elements = strings.Count(field.ElementNames, ",") + 1
+		}
+	}
+
+	uavObject.calculateId()
+
+	definitions = append(definitions, uavObject)
+
 	return nil
 }
