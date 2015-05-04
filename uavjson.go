@@ -90,7 +90,3 @@ func (uavdef *UAVObjectDefinition) uAVTalkToJSON(data []byte) ([]byte, error) {
 
 	return val, err
 }
-
-func (*UAVObjectDefinition) jSONtoUAVTalk(json string) []byte {
-	return nil
-}

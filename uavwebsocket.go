@@ -1,9 +1,10 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
 	"log"
 	"net/http"
+	"sync"
 
 	"github.com/gorilla/websocket"
 )
@@ -24,11 +25,22 @@ func startAsServer(uavChan chan *UAVTalkObject) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		defer closeUAVChan()
 		defer conn.Close()
 		openUAVChan()
 
+		var wg sync.WaitGroup
+		outCloseChan := make(chan bool)
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			for uavTalkObject := range uavChan {
+				select {
+				case <-outCloseChan:
+					return
+				default:
+				}
+
 				uavdef := getUAVObjectDefinitionForObjectID(uavTalkObject.objectId)
 
 				if uavdef != nil {
@@ -36,27 +48,47 @@ func startAsServer(uavChan chan *UAVTalkObject) {
 					if err != nil {
 						log.Fatal(err)
 					}
-					fmt.Printf("%30s : %s\n", uavdef.Name, string(json))
+					//log.Printf("%30s : %s\n", uavdef.Name, string(json))
 					if err := conn.WriteMessage(websocket.TextMessage, json); err != nil {
-						log.Fatal(err)
+						log.Println(err)
+						return
 					}
 				} else {
-					//fmt.Printf("!!!!!!!!!!!! Not found : %d !!!!!!!!!!!!!!!!!\n", uavTalkObject.objectId)
+					//log.Printf("!!!!!!!!!!!! Not found : %d !!!!!!!!!!!!!!!!!\n", uavTalkObject.objectId)
 				}
 			}
 		}()
 
+		inCloseChan := make(chan bool)
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
+
 			for {
-				if _, _, err := conn.NextReader(); err != nil {
-					log.Fatal(err)
-					break
+				select {
+				case <-inCloseChan:
+					return
+				default:
+				}
+				messageType, reader, err := conn.NextReader()
+				if err != nil {
+					log.Println(err)
+					return
+				}
+				if messageType == websocket.TextMessage {
+					content := make(map[string]interface{})
+					decoder := json.NewDecoder(reader)
+					if err := decoder.Decode(&content); err != nil {
+						log.Println(err)
+					} else {
+						log.Println(content)
+					}
 				}
 			}
 		}()
 
 		log.Println("Treating messages")
-		select {}
+		wg.Wait()
 	})
 
 	go http.ListenAndServe(":4242", nil)

@@ -13,7 +13,7 @@ func main() {
 
 	loadUAVObjectDefinitions(os.Args[1])
 
-	uavChan := make(chan *UAVTalkObject)
+	uavChan := make(chan *UAVTalkObject, 100)
 	startUAVTalk(uavChan)
 	startAsServer(uavChan)
 

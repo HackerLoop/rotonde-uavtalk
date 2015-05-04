@@ -100,12 +100,15 @@ func startHID(stopChan chan bool, uavChan chan *UAVTalkObject) {
 		log.Fatal(err)
 	}
 	defer cc.Close()
+	defer log.Println("stopping HID")
+
+	log.Println("starting HID")
 
 	buffer := make([]byte, 64)
 	packet := make([]byte, 0, 4096)
 	for {
 		select {
-		case _ = <-stopChan:
+		case <-stopChan:
 			return
 		default:
 		}
@@ -126,7 +129,7 @@ func startHID(stopChan chan bool, uavChan chan *UAVTalkObject) {
 			if uavTalkObject, err := newUAVTalkObject(packet[from:to]); err == nil {
 				uavChan <- uavTalkObject
 			} else {
-				fmt.Println(err)
+				log.Println(err)
 			}
 			copy(packet, packet[from:])
 			packet = packet[0 : len(packet)-to]
@@ -152,8 +155,8 @@ func startUAVTalk(uavChan chan *UAVTalkObject) {
 			if startStop {
 				if started == false {
 					go startHID(stopChan, uavChan)
+					started = true
 				}
-				started = true
 			} else {
 				if started {
 					stopChan <- true
