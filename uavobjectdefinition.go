@@ -13,9 +13,9 @@ import (
 )
 
 /**
- * definitions storage
+ * uavObjectDefinitions storage
  */
-var definitions []*UAVObjectDefinition
+var uavObjectDefinitions []*UAVObjectDefinition
 
 /**
  * Utils
@@ -72,7 +72,7 @@ func (fields FieldSlice) Swap(i, j int) {
 	fields[i], fields[j] = fields[j], fields[i]
 }
 
-// definitions models
+// uavObjectDefinitions models
 type UAVObjectFieldDefinition struct {
 	Name  string `xml:"name,attr"`
 	Units string `xml:"units,attr"`
@@ -81,9 +81,9 @@ type UAVObjectFieldDefinition struct {
 	fieldTypeInfo *FieldTypeInfo
 
 	Elements         int      `xml:"elements,attr"`
-	ElementNamesAttr string   `xml:"elementnames,attr"`
+	ElementNamesAttr string   `xml:"elementnames,attr" json:"-"`
 	ElementNames     []string `xml:"elementnames>elementname"`
-	OptionsAttr      string   `xml:"options,attr"`
+	OptionsAttr      string   `xml:"options,attr" json:"-"`
 	Options          []string `xml:"options>option"`
 	DefaultValue     string   `xml:"defaultvalue,attr"`
 
@@ -184,7 +184,7 @@ func newUAVObjectDefinition(filePath string) (*UAVObjectDefinition, error) {
 
 // exported functions
 func getUAVObjectDefinitionForObjectID(objectID uint32) (*UAVObjectDefinition, error) {
-	for _, uavdef := range definitions {
+	for _, uavdef := range uavObjectDefinitions {
 		if uavdef.ObjectID == objectID {
 			return uavdef, nil
 		}
@@ -204,7 +204,7 @@ func loadUAVObjectDefinitions(dir string) error {
 		if err != nil {
 			log.Fatal(err)
 		}
-		definitions = append(definitions, uavdef)
+		uavObjectDefinitions = append(uavObjectDefinitions, uavdef)
 	}
 	return nil
 }

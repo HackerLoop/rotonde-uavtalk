@@ -37,6 +37,8 @@ func startAsServer(uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject) {
 		defer conn.Close()
 		openUAVChan()
 
+		websocket.WriteJSON(conn, uavObjectDefinitions)
+
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {

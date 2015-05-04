@@ -189,10 +189,7 @@ func startHID(stopChan chan bool, uavChan chan *UAVTalkObject, jsonChan chan *UA
 			select {
 			case <-jsonStopChan:
 				return
-			default:
-			}
-
-			for uavTalkObject := range jsonChan {
+			case uavTalkObject := <-jsonChan:
 				binaryObj, err := uavTalkObject.toBinary()
 				if err != nil {
 					log.Println(err)
