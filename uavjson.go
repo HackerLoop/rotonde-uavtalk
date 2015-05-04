@@ -7,59 +7,43 @@ import (
 	"errors"
 )
 
+/**
+ * UAVObjectFieldDefinition
+ */
+
 func (field *UAVObjectFieldDefinition) readFromUAVTalk(reader *bytes.Reader) (interface{}, error) {
 	typeInfo := field.fieldTypeInfo
+	var result interface{}
 	switch typeInfo.name {
 	case "int8":
-		var result int8
-		if err := binary.Read(reader, binary.LittleEndian, &result); err != nil {
-			return nil, err
-		}
-		return result, nil
+		result = new(uint8)
 	case "int16":
-		var result int16
-		if err := binary.Read(reader, binary.LittleEndian, &result); err != nil {
-			return nil, err
-		}
-		return result, nil
+		result = new(uint16)
 	case "int32":
-		var result int32
-		if err := binary.Read(reader, binary.LittleEndian, &result); err != nil {
-			return nil, err
-		}
-		return result, nil
+		result = new(int32)
 	case "uint8":
-		var result uint8
-		if err := binary.Read(reader, binary.LittleEndian, &result); err != nil {
-			return nil, err
-		}
-		return result, nil
+		result = new(uint8)
 	case "uint16":
-		var result uint16
-		if err := binary.Read(reader, binary.LittleEndian, &result); err != nil {
-			return nil, err
-		}
-		return result, nil
+		result = new(uint16)
 	case "uint32":
-		var result uint32
-		if err := binary.Read(reader, binary.LittleEndian, &result); err != nil {
-			return nil, err
-		}
-		return result, nil
+		result = new(uint32)
 	case "float":
-		var result float32
-		if err := binary.Read(reader, binary.LittleEndian, &result); err != nil {
-			return nil, err
-		}
-		return result, nil
+		result = new(float32)
 	case "enum":
-		var result int8
-		if err := binary.Read(reader, binary.LittleEndian, &result); err != nil {
-			return nil, err
-		}
-		return field.Options[result], nil
+		result = new(uint8)
 	}
-	return nil, errors.New("Could not read from typeInfo.")
+	if result == nil {
+		return nil, errors.New("Could not read from typeInfo.")
+	}
+	if err := binary.Read(reader, binary.LittleEndian, result); err != nil {
+		return nil, err
+	}
+
+	if typeInfo.name == "enum" {
+		result = field.Options[uint8(*(result.(*uint8)))] // haha
+	}
+
+	return result, nil
 }
 
 func (field *UAVObjectFieldDefinition) uAVTalkToInterface(reader *bytes.Reader) (interface{}, error) {
@@ -83,6 +67,10 @@ func (field *UAVObjectFieldDefinition) uAVTalkToInterface(reader *bytes.Reader) 
 	}
 	return result, nil
 }
+
+/**
+ * UAVObjectDefinition
+ */
 
 func (uavdef *UAVObjectDefinition) uAVTalkToJSON(data []byte) (string, error) {
 	reader := bytes.NewReader(data)

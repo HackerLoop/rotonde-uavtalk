@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 
@@ -9,7 +8,6 @@ import (
 )
 
 // TODO: refactor for better value reading (encoding/binary)
-// TODO: better packetComplete function (look for 0x3c instead of checking only first byte)
 
 const VER_MASK = 0x20
 
@@ -37,31 +35,41 @@ func byteArrayToInt16(b []byte) uint16 {
 	return (uint16(b[1]) << 8) | (uint16(b[0]))
 }
 
-func packetComplete(packet []byte) (bool, int) {
-	if packet[0] != 0x3c {
-		return false, 0
+func packetComplete(packet []byte) (bool, int, int) {
+	var offset int = -1
+	for i := 0; i < len(packet); i++ {
+		if packet[i] == 0x3c {
+			offset = i
+			break
+		}
 	}
 
-	length := byteArrayToInt16(packet[2:4])
-
-	if int(length)+1 > len(packet) {
-		return false, 0
+	if offset < 0 {
+		return false, 0, 0
 	}
 
-	cks := packet[length]
+	frame := packet[offset:]
+
+	if len(frame) < 11 {
+		return false, 0, 0
+	}
+
+	length := byteArrayToInt16(frame[2:4])
+
+	if int(length)+1 > len(frame) {
+		return false, 0, 0
+	}
+
+	cks := frame[length]
 
 	if cks != computeCrc8(0, packet[0:length]) {
-		return false, 0
+		return false, 0, 0
 	}
 
-	return true, int(length) + 1
+	return true, offset, offset + int(length) + 1
 }
 
 func newUAVTalkObject(packet []byte) (*UAVTalkObject, error) {
-	if packet[0] != 0x3c {
-		return nil, errors.New("Wrong Sync val..")
-	}
-
 	uavTalkObject := &UAVTalkObject{}
 
 	uavTalkObject.cmd = packet[1] ^ VER_MASK
@@ -71,8 +79,6 @@ func newUAVTalkObject(packet []byte) (*UAVTalkObject, error) {
 
 	uavTalkObject.data = make([]byte, uavTalkObject.length-10)
 	copy(uavTalkObject.data, packet[10:len(packet)-1])
-
-	//fmt.Println(uavTalkObject)
 
 	return uavTalkObject, nil
 }
@@ -106,18 +112,18 @@ func startHID(c chan *UAVTalkObject) {
 		packet = append(packet[len(packet):], buffer[2:n]...)
 
 		for {
-			ok, n := packetComplete(packet)
+			ok, from, to := packetComplete(packet)
 			if ok != true {
 				break
 			}
-			//printHex(packet[:n], n)
-			if uavTalkObject, err := newUAVTalkObject(packet[:n]); err == nil {
+			//printHex(packet[from:to], to-from)
+			if uavTalkObject, err := newUAVTalkObject(packet[from:to]); err == nil {
 				c <- uavTalkObject
 			} else {
 				fmt.Println(err)
 			}
-			copy(packet, packet[n:])
-			packet = packet[0 : len(packet)-n]
+			copy(packet, packet[from:])
+			packet = packet[0 : len(packet)-to]
 		}
 	}
 }
