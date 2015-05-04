@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 )
 
@@ -11,82 +10,73 @@ import (
  * UAVObjectFieldDefinition
  */
 
-func (field *UAVObjectFieldDefinition) writeToUAVTalk(reader *bytes.Reader) (interface{}, error) {
+func (field *UAVObjectFieldDefinition) writeToUAVTalk(writer *bytes.Buffer, value interface{}) error {
 	typeInfo := field.fieldTypeInfo
 	var result interface{}
 	switch typeInfo.name {
 	case "int8":
-		result = new(uint8)
+		result = value.(uint8)
 	case "int16":
-		result = new(uint16)
+		result = value.(uint16)
 	case "int32":
-		result = new(int32)
+		result = value.(int32)
 	case "uint8":
-		result = new(uint8)
+		result = value.(uint8)
 	case "uint16":
-		result = new(uint16)
+		result = value.(uint16)
 	case "uint32":
-		result = new(uint32)
+		result = value.(uint32)
 	case "float":
-		result = new(float32)
+		result = float32(value.(float64))
 	case "enum":
-		result = new(uint8)
+		result = value.(uint8)
 	}
 	if result == nil {
-		return nil, errors.New("Could not read from typeInfo.")
+		return errors.New("Could not read from typeInfo.")
 	}
-	if err := binary.Read(reader, binary.LittleEndian, result); err != nil {
-		return nil, err
+	if err := binary.Write(writer, binary.LittleEndian, result); err != nil {
+		return err
 	}
 
 	if typeInfo.name == "enum" {
-		result = field.Options[uint8(*(result.(*uint8)))] // haha
+		result = field.Options[*(result.(*uint8))] // haha
 	}
 
-	return result, nil
+	return nil
 }
 
-func (field *UAVObjectFieldDefinition) interfaceToUAVTalk(reader *bytes.Reader) (interface{}, error) {
-	var result interface{}
+func (field *UAVObjectFieldDefinition) interfaceToUAVTalk(writer *bytes.Buffer, value interface{}) error {
 	if field.Elements > 1 {
-		resultArray := make([]interface{}, field.Elements)
-		for i := 0; i < field.Elements; i++ {
-			value, err := field.readFromUAVTalk(reader)
-			if err != nil {
-				return nil, err
+		valueArray, ok := value.([]interface{})
+
+		if ok == false {
+			return errors.New("Value should be a slice for fields with Elements > 1")
+		}
+
+		for _, value := range valueArray {
+			if err := field.writeToUAVTalk(writer, value); err != nil {
+				return err
 			}
-			resultArray[i] = value
 		}
-		result = resultArray
 	} else {
-		value, err := field.readFromUAVTalk(reader)
-		if err != nil {
-			return nil, err
+		if err := field.writeToUAVTalk(writer, value); err != nil {
+			return err
 		}
-		result = value
 	}
-	return result, nil
+	return nil
 }
 
 /**
  * UAVObjectDefinition
  */
 
-func (uavdef *UAVObjectDefinition) jsonToUAVTalk(data []byte) ([]byte, error) {
-	reader := bytes.NewReader(data)
-	result := make(map[string]interface{})
+func (uavdef *UAVObjectDefinition) mapToUAVTalk(data map[string]interface{}) ([]byte, error) {
+	writer := new(bytes.Buffer)
 	for _, field := range uavdef.Fields {
-		value, err := field.uAVTalkToInterface(reader)
-		if err != nil {
+		if err := field.interfaceToUAVTalk(writer, data[field.Name]); err != nil {
 			return nil, err
 		}
-		result[field.Name] = value
 	}
 
-	val, err := json.Marshal(result)
-	if err != nil {
-		return nil, err
-	}
-
-	return val, err
+	return writer.Bytes(), nil
 }

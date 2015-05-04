@@ -169,11 +169,9 @@ func newUAVObjectDefinition(filePath string) (*UAVObjectDefinition, error) {
 			if err != nil {
 				return nil, err
 			}
-			name := field.Name
-			cloneOf := field.CloneOf
+			name, cloneOf := field.Name, field.CloneOf
 			*field = *clonedField
-			field.Name = name
-			field.CloneOf = cloneOf
+			field.Name, field.CloneOf = name, cloneOf
 		}
 	}
 
@@ -185,13 +183,13 @@ func newUAVObjectDefinition(filePath string) (*UAVObjectDefinition, error) {
 }
 
 // exported functions
-func getUAVObjectDefinitionForObjectID(objectID uint32) *UAVObjectDefinition {
+func getUAVObjectDefinitionForObjectID(objectID uint32) (*UAVObjectDefinition, error) {
 	for _, uavdef := range definitions {
 		if uavdef.ObjectID == objectID {
-			return uavdef
+			return uavdef, nil
 		}
 	}
-	return nil
+	return nil, errors.New(fmt.Sprint(objectID, " Not found"))
 }
 
 func loadUAVObjectDefinitions(dir string) error {

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"log"
 
@@ -17,6 +19,36 @@ type UAVTalkObject struct {
 	objectId   uint32
 	instanceId uint16
 	data       []byte
+}
+
+func (uavTalkObject *UAVTalkObject) toBinary() ([]byte, error) {
+	writer := new(bytes.Buffer)
+
+	if err := binary.Write(writer, binary.LittleEndian, uint8(0x3c)); err != nil {
+		return nil, err
+	}
+	if err := binary.Write(writer, binary.LittleEndian, uavTalkObject.cmd|VER_MASK); err != nil {
+		return nil, err
+	}
+	if err := binary.Write(writer, binary.LittleEndian, uavTalkObject.length); err != nil {
+		return nil, err
+	}
+	if err := binary.Write(writer, binary.LittleEndian, uavTalkObject.objectId); err != nil {
+		return nil, err
+	}
+	if err := binary.Write(writer, binary.LittleEndian, uavTalkObject.instanceId); err != nil {
+		return nil, err
+	}
+	if err := binary.Write(writer, binary.LittleEndian, uavTalkObject.data); err != nil {
+		return nil, err
+	}
+
+	cks := computeCrc8(0, writer.Bytes())
+	if err := binary.Write(writer, binary.LittleEndian, cks); err != nil {
+		return nil, err
+	}
+
+	return writer.Bytes(), nil
 }
 
 func byteArrayToInt32(b []byte) uint32 {
@@ -69,7 +101,7 @@ func packetComplete(packet []byte) (bool, int, int) {
 	return true, offset, offset + int(length) + 1
 }
 
-func newUAVTalkObject(packet []byte) (*UAVTalkObject, error) {
+func newUAVTalkObjectFromBinary(packet []byte) (*UAVTalkObject, error) {
 	uavTalkObject := &UAVTalkObject{}
 
 	uavTalkObject.cmd = packet[1] ^ VER_MASK
@@ -80,6 +112,16 @@ func newUAVTalkObject(packet []byte) (*UAVTalkObject, error) {
 	uavTalkObject.data = make([]byte, uavTalkObject.length-10)
 	copy(uavTalkObject.data, packet[10:len(packet)-1])
 
+	return uavTalkObject, nil
+}
+
+func newUAVTalkObject(cmd uint8, objectId uint32, instanceId uint16, data []byte) (*UAVTalkObject, error) {
+	uavTalkObject := new(UAVTalkObject)
+	uavTalkObject.cmd = cmd
+	uavTalkObject.objectId = objectId
+	uavTalkObject.instanceId = instanceId
+	uavTalkObject.length = uint16(10 + len(data))
+	uavTalkObject.data = data
 	return uavTalkObject, nil
 }
 
@@ -94,7 +136,7 @@ func printHex(buffer []byte, n int) {
 	fmt.Println("\nend packet")
 }
 
-func startHID(stopChan chan bool, uavChan chan *UAVTalkObject) {
+func startHID(stopChan chan bool, uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject) {
 	cc, err := hid.Open(0x20a0, 0x415b, "")
 	if err != nil {
 		log.Fatal(err)
@@ -104,37 +146,72 @@ func startHID(stopChan chan bool, uavChan chan *UAVTalkObject) {
 
 	log.Println("starting HID")
 
-	buffer := make([]byte, 64)
-	packet := make([]byte, 0, 4096)
-	for {
-		select {
-		case <-stopChan:
-			return
-		default:
-		}
-
-		n, err := cc.Read(buffer)
-		if err != nil {
-			panic(err)
-		}
-
-		packet = append(packet[len(packet):], buffer[2:n]...)
-
+	uavStopChan := make(chan bool)
+	// uav goroutine
+	go func() {
+		buffer := make([]byte, 64)
+		packet := make([]byte, 0, 4096)
 		for {
-			ok, from, to := packetComplete(packet)
-			if ok != true {
-				break
+			select {
+			case <-uavStopChan:
+				return
+			default:
 			}
-			//printHex(packet[from:to], to-from)
-			if uavTalkObject, err := newUAVTalkObject(packet[from:to]); err == nil {
-				uavChan <- uavTalkObject
-			} else {
-				log.Println(err)
+
+			n, err := cc.Read(buffer)
+			if err != nil {
+				panic(err)
 			}
-			copy(packet, packet[from:])
-			packet = packet[0 : len(packet)-to]
+
+			packet = append(packet[len(packet):], buffer[2:n]...)
+
+			for {
+				ok, from, to := packetComplete(packet)
+				if ok != true {
+					break
+				}
+				//printHex(packet[from:to], to-from)
+				if uavTalkObject, err := newUAVTalkObjectFromBinary(packet[from:to]); err == nil {
+					uavChan <- uavTalkObject
+				} else {
+					log.Println(err)
+				}
+				copy(packet, packet[from:])
+				packet = packet[0 : len(packet)-to]
+			}
 		}
-	}
+	}()
+
+	jsonStopChan := make(chan bool)
+	// json goroutine
+	go func() {
+		for {
+			select {
+			case <-jsonStopChan:
+				return
+			default:
+			}
+
+			for uavTalkObject := range jsonChan {
+				binaryObj, err := uavTalkObject.toBinary()
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+				printHex(binaryObj, len(binaryObj))
+
+				n, err := cc.Write(binaryObj)
+				if err != nil {
+					panic(err)
+				}
+				log.Println("Bytes sent", n)
+			}
+		}
+	}()
+
+	<-stopChan
+	uavStopChan <- true
+	jsonStopChan <- true
 }
 
 var startStopControlChan = make(chan bool)
@@ -147,14 +224,14 @@ func closeUAVChan() {
 	startStopControlChan <- false
 }
 
-func startUAVTalk(uavChan chan *UAVTalkObject) {
+func startUAVTalk(uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject) {
 	go func() {
 		stopChan := make(chan bool)
 		started := false
 		for startStop := range startStopControlChan {
 			if startStop {
 				if started == false {
-					go startHID(stopChan, uavChan)
+					go startHID(stopChan, uavChan, jsonChan)
 					started = true
 				}
 			} else {

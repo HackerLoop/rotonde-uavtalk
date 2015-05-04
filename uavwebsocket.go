@@ -9,7 +9,15 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func startAsServer(uavChan chan *UAVTalkObject) {
+type JSONPackage struct {
+	Name       string
+	Cmd        uint8
+	ObjectId   uint32
+	InstanceId uint16
+	Data       map[string]interface{}
+}
+
+func startAsServer(uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject) {
 
 	var upgrader = websocket.Upgrader{
 		ReadBufferSize:  2048,
@@ -30,59 +38,71 @@ func startAsServer(uavChan chan *UAVTalkObject) {
 		openUAVChan()
 
 		var wg sync.WaitGroup
-		outCloseChan := make(chan bool)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for uavTalkObject := range uavChan {
-				select {
-				case <-outCloseChan:
-					return
-				default:
+				uavdef, err := getUAVObjectDefinitionForObjectID(uavTalkObject.objectId)
+				if err != nil {
+					//log.Println(err)
+					continue
 				}
 
-				uavdef := getUAVObjectDefinitionForObjectID(uavTalkObject.objectId)
+				data, err := uavdef.uAVTalkToMap(uavTalkObject.data)
+				if err != nil {
+					log.Fatal(err)
+				}
 
-				if uavdef != nil {
-					json, err := uavdef.uAVTalkToJSON(uavTalkObject.data)
-					if err != nil {
-						log.Fatal(err)
-					}
-					//log.Printf("%30s : %s\n", uavdef.Name, string(json))
-					if err := conn.WriteMessage(websocket.TextMessage, json); err != nil {
-						log.Println(err)
-						return
-					}
-				} else {
-					//log.Printf("!!!!!!!!!!!! Not found : %d !!!!!!!!!!!!!!!!!\n", uavTalkObject.objectId)
+				jsonObject := JSONPackage{uavdef.Name, uavTalkObject.cmd, uavdef.ObjectID, uavTalkObject.instanceId, data}
+
+				json, err := json.Marshal(&jsonObject)
+				if err != nil {
+					log.Fatal(err)
+				}
+				//log.Printf("%30s : %s\n", uavdef.Name, string(json))
+				if err := conn.WriteMessage(websocket.TextMessage, json); err != nil {
+					log.Println(err)
+					return
 				}
 			}
 		}()
 
-		inCloseChan := make(chan bool)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 
 			for {
-				select {
-				case <-inCloseChan:
-					return
-				default:
-				}
 				messageType, reader, err := conn.NextReader()
 				if err != nil {
 					log.Println(err)
 					return
 				}
 				if messageType == websocket.TextMessage {
-					content := make(map[string]interface{})
+					content := JSONPackage{}
 					decoder := json.NewDecoder(reader)
 					if err := decoder.Decode(&content); err != nil {
 						log.Println(err)
-					} else {
-						log.Println(content)
+						continue
 					}
+
+					uavdef, err := getUAVObjectDefinitionForObjectID(content.ObjectId)
+					if err != nil {
+						log.Println(err)
+						continue
+					}
+
+					data, err := uavdef.mapToUAVTalk(content.Data)
+					if err != nil {
+						log.Println(data)
+						continue
+					}
+
+					uavTalkObject, err := newUAVTalkObject(content.Cmd, content.ObjectId, content.InstanceId, data)
+					if err != nil {
+						log.Println(err)
+						continue
+					}
+					jsonChan <- uavTalkObject
 				}
 			}
 		}()

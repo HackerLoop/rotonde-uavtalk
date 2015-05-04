@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 )
 
@@ -72,7 +71,7 @@ func (field *UAVObjectFieldDefinition) uAVTalkToInterface(reader *bytes.Reader) 
  * UAVObjectDefinition
  */
 
-func (uavdef *UAVObjectDefinition) uAVTalkToJSON(data []byte) ([]byte, error) {
+func (uavdef *UAVObjectDefinition) uAVTalkToMap(data []byte) (map[string]interface{}, error) {
 	reader := bytes.NewReader(data)
 	result := make(map[string]interface{})
 	for _, field := range uavdef.Fields {
@@ -83,10 +82,5 @@ func (uavdef *UAVObjectDefinition) uAVTalkToJSON(data []byte) ([]byte, error) {
 		result[field.Name] = value
 	}
 
-	val, err := json.Marshal(result)
-	if err != nil {
-		return nil, err
-	}
-
-	return val, err
+	return result, nil
 }
