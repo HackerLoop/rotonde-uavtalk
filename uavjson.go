@@ -72,23 +72,23 @@ func (field *UAVObjectFieldDefinition) uAVTalkToInterface(reader *bytes.Reader) 
  * UAVObjectDefinition
  */
 
-func (uavdef *UAVObjectDefinition) uAVTalkToJSON(data []byte) (string, error) {
+func (uavdef *UAVObjectDefinition) uAVTalkToJSON(data []byte) ([]byte, error) {
 	reader := bytes.NewReader(data)
 	result := make(map[string]interface{})
 	for _, field := range uavdef.Fields {
 		value, err := field.uAVTalkToInterface(reader)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		result[field.Name] = value
 	}
 
 	val, err := json.Marshal(result)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return string(val), err
+	return val, err
 }
 
 func (*UAVObjectDefinition) jSONtoUAVTalk(json string) []byte {

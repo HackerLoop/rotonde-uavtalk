@@ -48,31 +48,18 @@ func toISO88591(utf8 string) (string, error) {
 func (uavdef *UAVObjectDefinition) calculateId() {
 	hash := new(Hash)
 
-	//fmt.Println(uavdef.Name)
-	//fmt.Println(*hash)
 	hash.updateHashWithString(uavdef.Name)
-	//fmt.Println(*hash)
 	hash.updateHashWithBool(uavdef.Settings)
-	//fmt.Println(*hash)
 	hash.updateHashWithBool(uavdef.SingleInstance)
-	//fmt.Println(*hash)
 
 	for _, field := range uavdef.Fields {
-		//fmt.Println(field.Name)
 		hash.updateHashWithString(field.Name)
-		//fmt.Println(*hash)
 		hash.updateHashWithInt(uint32(field.Elements))
-		//fmt.Println(field.Elements)
-		//fmt.Println(*hash)
 		hash.updateHashWithInt(uint32(field.fieldTypeInfo.index))
-		//fmt.Println(field.Type)
-		//fmt.Println(*hash)
 
 		if field.Type == "enum" {
-			//fmt.Println("enum")
 			for _, option := range field.Options {
 				hash.updateHashWithString(option)
-				//fmt.Println(*hash)
 			}
 		}
 	}

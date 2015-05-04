@@ -94,7 +94,7 @@ func printHex(buffer []byte, n int) {
 	fmt.Println("\nend packet")
 }
 
-func startHID(c chan *UAVTalkObject) {
+func startHID(stopChan chan bool, uavChan chan *UAVTalkObject) {
 	cc, err := hid.Open(0x20a0, 0x415b, "")
 	if err != nil {
 		log.Fatal(err)
@@ -104,6 +104,12 @@ func startHID(c chan *UAVTalkObject) {
 	buffer := make([]byte, 64)
 	packet := make([]byte, 0, 4096)
 	for {
+		select {
+		case _ = <-stopChan:
+			return
+		default:
+		}
+
 		n, err := cc.Read(buffer)
 		if err != nil {
 			panic(err)
@@ -118,7 +124,7 @@ func startHID(c chan *UAVTalkObject) {
 			}
 			//printHex(packet[from:to], to-from)
 			if uavTalkObject, err := newUAVTalkObject(packet[from:to]); err == nil {
-				c <- uavTalkObject
+				uavChan <- uavTalkObject
 			} else {
 				fmt.Println(err)
 			}
@@ -128,10 +134,32 @@ func startHID(c chan *UAVTalkObject) {
 	}
 }
 
-func startUAVTalk() chan *UAVTalkObject {
-	c := make(chan *UAVTalkObject)
+var startStopControlChan = make(chan bool)
 
-	go startHID(c)
+func openUAVChan() {
+	startStopControlChan <- true
+}
 
-	return c
+func closeUAVChan() {
+	startStopControlChan <- false
+}
+
+func startUAVTalk(uavChan chan *UAVTalkObject) {
+	go func() {
+		stopChan := make(chan bool)
+		started := false
+		for startStop := range startStopControlChan {
+			if startStop {
+				if started == false {
+					go startHID(stopChan, uavChan)
+				}
+				started = true
+			} else {
+				if started {
+					stopChan <- true
+					started = false
+				}
+			}
+		}
+	}()
 }
