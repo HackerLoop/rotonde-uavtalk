@@ -4,24 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"log"
-	"strings"
 
 	"code.google.com/p/go-charset/charset"
 	_ "code.google.com/p/go-charset/data"
 )
-
-type TypeIndex []string
-
-var types = TypeIndex{"int8", "int16", "int32", "uint8", "uint16", "uint32", "float", "enum"}
-
-func (t TypeIndex) indexForString(ts string) int {
-	for i, typeIndexStr := range types {
-		if typeIndexStr == ts {
-			return i
-		}
-	}
-	return -1
-}
 
 type Hash uint32
 
@@ -62,19 +48,31 @@ func toISO88591(utf8 string) (string, error) {
 func (uavdef *UAVObjectDefinition) calculateId() {
 	hash := new(Hash)
 
+	//fmt.Println(uavdef.Name)
+	//fmt.Println(*hash)
 	hash.updateHashWithString(uavdef.Name)
+	//fmt.Println(*hash)
 	hash.updateHashWithBool(uavdef.Settings)
+	//fmt.Println(*hash)
 	hash.updateHashWithBool(uavdef.SingleInstance)
+	//fmt.Println(*hash)
 
 	for _, field := range uavdef.Fields {
+		//fmt.Println(field.Name)
 		hash.updateHashWithString(field.Name)
+		//fmt.Println(*hash)
 		hash.updateHashWithInt(uint32(field.Elements))
-		hash.updateHashWithInt(uint32(types.indexForString(field.Type)))
+		//fmt.Println(field.Elements)
+		//fmt.Println(*hash)
+		hash.updateHashWithInt(uint32(field.fieldTypeInfo.index))
+		//fmt.Println(field.Type)
+		//fmt.Println(*hash)
 
 		if field.Type == "enum" {
-			options := strings.Split(field.Options, ",")
-			for _, option := range options {
+			//fmt.Println("enum")
+			for _, option := range field.Options {
 				hash.updateHashWithString(option)
+				//fmt.Println(*hash)
 			}
 		}
 	}

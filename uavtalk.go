@@ -8,6 +8,9 @@ import (
 	"github.com/GeertJohan/go.hid"
 )
 
+// TODO: refactor for better value reading (encoding/binary)
+// TODO: better packetComplete function (look for 0x3c instead of checking only first byte)
+
 const VER_MASK = 0x20
 
 type UAVTalkObject struct {
@@ -16,7 +19,6 @@ type UAVTalkObject struct {
 	objectId   uint32
 	instanceId uint16
 	data       []byte
-	cks        uint8
 }
 
 func byteArrayToInt32(b []byte) uint32 {
@@ -48,9 +50,6 @@ func packetComplete(packet []byte) (bool, int) {
 
 	cks := packet[length]
 
-	// check cks
-	// fmt.Printf("%d %d\n", uint8(cks), computeCrc8(0, packet[0:length]))
-
 	if cks != computeCrc8(0, packet[0:length]) {
 		return false, 0
 	}
@@ -60,7 +59,7 @@ func packetComplete(packet []byte) (bool, int) {
 
 func newUAVTalkObject(packet []byte) (*UAVTalkObject, error) {
 	if packet[0] != 0x3c {
-		return nil, errors.New("Wrong Sync val xP")
+		return nil, errors.New("Wrong Sync val..")
 	}
 
 	uavTalkObject := &UAVTalkObject{}
@@ -72,8 +71,6 @@ func newUAVTalkObject(packet []byte) (*UAVTalkObject, error) {
 
 	uavTalkObject.data = make([]byte, uavTalkObject.length-10)
 	copy(uavTalkObject.data, packet[10:len(packet)-1])
-
-	uavTalkObject.cks = packet[len(packet)-1]
 
 	//fmt.Println(uavTalkObject)
 

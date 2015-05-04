@@ -1,23 +1,93 @@
 package main
 
 import (
+	//"encoding/binary"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
+	"sort"
 	"strings"
 )
 
+/**
+ * definitions storage
+ */
 var definitions []*UAVObjectDefinition
 
+/**
+ * Utils
+ */
+type FieldTypeInfo struct {
+	index int
+	name  string
+	size  int
+}
+
+type TypeIndex []*FieldTypeInfo
+
+var typeInfos = TypeIndex{
+	&FieldTypeInfo{0, "int8", 1},
+	&FieldTypeInfo{1, "int16", 2},
+	&FieldTypeInfo{2, "int32", 4},
+	&FieldTypeInfo{3, "uint8", 1},
+	&FieldTypeInfo{4, "uint16", 2},
+	&FieldTypeInfo{5, "uint32", 4},
+	&FieldTypeInfo{6, "float", 4},
+	&FieldTypeInfo{7, "enum", 1},
+}
+
+func (t TypeIndex) fieldTypeForString(ts string) (*FieldTypeInfo, error) {
+	for _, fieldTypeInfo := range typeInfos {
+		if fieldTypeInfo.name == ts {
+			return fieldTypeInfo, nil
+		}
+	}
+	return nil, errors.New(fmt.Sprintf("Not found field type: %s", ts))
+}
+
+// sorted slice of fields
+type FieldSlice []*UAVObjectFieldDefinition
+
+func (fields FieldSlice) fieldForName(name string) (*UAVObjectFieldDefinition, error) {
+	for _, field := range fields {
+		if field.Name == name {
+			return field, nil
+		}
+	}
+	return nil, errors.New(fmt.Sprintf("Not found field name: %s", name))
+}
+
+func (fields FieldSlice) Len() int {
+	return len(fields)
+}
+
+func (fields FieldSlice) Less(i, j int) bool {
+	return fields[i].fieldTypeInfo.size > fields[j].fieldTypeInfo.size
+}
+
+func (fields FieldSlice) Swap(i, j int) {
+	fields[i], fields[j] = fields[j], fields[i]
+}
+
+// definitions models
 type UAVObjectFieldDefinition struct {
-	Name         string `xml:"name,attr"`
-	Units        string `xml:"units,attr"`
-	Type         string `xml:"type,attr"`
-	Elements     int    `xml:"elements,attr"`
-	ElementNames string `xml:"elementnames,attr"`
-	Options      string `xml:"options,attr"`
-	DefaultValue string `xml:"defaultvalue,attr"`
+	Name  string `xml:"name,attr"`
+	Units string `xml:"units,attr"`
+	Type  string `xml:"type,attr"`
+
+	fieldTypeInfo *FieldTypeInfo
+
+	Elements         int      `xml:"elements,attr"`
+	ElementNamesAttr string   `xml:"elementnames,attr"`
+	ElementNames     []string `xml:"elementnames>elementname"`
+	OptionsAttr      string   `xml:"options,attr"`
+	Options          []string `xml:"options>option"`
+	DefaultValue     string   `xml:"defaultvalue,attr"`
+
+	CloneOf string `xml:"cloneof,attr"`
 }
 
 type UAVObjectDefinition struct {
@@ -51,21 +121,70 @@ type UAVObjectDefinition struct {
 		Period     string `xml:"period,attr"`
 	} `xml:"logging"`
 
-	Fields []*UAVObjectFieldDefinition `xml:"field"`
+	Fields FieldSlice `xml:"field"`
 }
 
-func (*UAVObjectDefinition) jsonCreateObject() string {
-	return ""
+func newUAVObjectDefinition(filePath string) (*UAVObjectDefinition, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	decoder := xml.NewDecoder(file)
+
+	var content = &struct {
+		UAVObject *UAVObjectDefinition `xml:"object"`
+	}{}
+	decoder.Decode(content)
+
+	uavObject := content.UAVObject
+
+	// fields post process
+	for _, field := range uavObject.Fields {
+		if len(field.CloneOf) != 0 {
+			continue
+		}
+		field.Elements = 1
+		if len(field.ElementNamesAttr) > 0 {
+			field.ElementNames = strings.Split(field.ElementNamesAttr, ",")
+			field.Elements = len(field.ElementNames)
+		} else if len(field.ElementNames) > 0 {
+			field.Elements = len(field.ElementNames)
+		}
+
+		if len(field.OptionsAttr) > 0 {
+			field.Options = strings.Split(field.OptionsAttr, ",")
+		}
+
+		field.fieldTypeInfo, err = typeInfos.fieldTypeForString(field.Type)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// create clones
+	for _, field := range uavObject.Fields {
+		if len(field.CloneOf) != 0 {
+			clonedField, err := uavObject.Fields.fieldForName(field.CloneOf)
+			if err != nil {
+				return nil, err
+			}
+			name := field.Name
+			cloneOf := field.CloneOf
+			*field = *clonedField
+			field.Name = name
+			field.CloneOf = cloneOf
+		}
+	}
+
+	sort.Sort(uavObject.Fields)
+
+	uavObject.calculateId()
+
+	return uavObject, nil
 }
 
-func (*UAVObjectDefinition) uAVTalkToJSON([]byte) string {
-	return ""
-}
-
-func (*UAVObjectDefinition) jSONtoUAVTalk(string) []byte {
-	return nil
-}
-
+// exported functions
 func getUAVObjectDefinitionForObjectID(objectID uint32) *UAVObjectDefinition {
 	for _, uavdef := range definitions {
 		if uavdef.ObjectID == objectID {
@@ -83,35 +202,11 @@ func loadUAVObjectDefinitions(dir string) error {
 
 	for _, fileInfo := range fileInfos {
 		filePath := fmt.Sprintf("%s%s", dir, fileInfo.Name())
-		parseUAVObjectDefinition(filePath)
-	}
-	return nil
-}
-
-func parseUAVObjectDefinition(filePath string) error {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return err
-	}
-
-	decoder := xml.NewDecoder(file)
-
-	var content = &struct {
-		UAVObject *UAVObjectDefinition `xml:"object"`
-	}{}
-	decoder.Decode(content)
-
-	uavObject := content.UAVObject
-
-	for _, field := range uavObject.Fields {
-		if len(field.ElementNames) > 0 {
-			field.Elements = strings.Count(field.ElementNames, ",") + 1
+		uavdef, err := newUAVObjectDefinition(filePath)
+		if err != nil {
+			log.Fatal(err)
 		}
+		definitions = append(definitions, uavdef)
 	}
-
-	uavObject.calculateId()
-
-	definitions = append(definitions, uavObject)
-
 	return nil
 }
