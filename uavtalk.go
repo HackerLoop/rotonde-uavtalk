@@ -27,20 +27,27 @@ func (uavTalkObject *UAVTalkObject) toBinary() ([]byte, error) {
 	if err := binary.Write(writer, binary.LittleEndian, uint8(0x3c)); err != nil {
 		return nil, err
 	}
+
 	if err := binary.Write(writer, binary.LittleEndian, uavTalkObject.cmd|VER_MASK); err != nil {
 		return nil, err
 	}
+
 	if err := binary.Write(writer, binary.LittleEndian, uavTalkObject.length); err != nil {
 		return nil, err
 	}
+
 	if err := binary.Write(writer, binary.LittleEndian, uavTalkObject.objectId); err != nil {
 		return nil, err
 	}
+
 	if err := binary.Write(writer, binary.LittleEndian, uavTalkObject.instanceId); err != nil {
 		return nil, err
 	}
-	if err := binary.Write(writer, binary.LittleEndian, uavTalkObject.data); err != nil {
-		return nil, err
+
+	if uavTalkObject.cmd == 0 || uavTalkObject.cmd == 2 {
+		if err := binary.Write(writer, binary.LittleEndian, uavTalkObject.data); err != nil {
+			return nil, err
+		}
 	}
 
 	cks := computeCrc8(0, writer.Bytes())
@@ -104,6 +111,9 @@ func packetComplete(packet []byte) (bool, int, int) {
 func newUAVTalkObjectFromBinary(packet []byte) (*UAVTalkObject, error) {
 	uavTalkObject := &UAVTalkObject{}
 
+	if packet[1] != 0x20 {
+		fmt.Printf("%x\n", packet[1])
+	}
 	uavTalkObject.cmd = packet[1] ^ VER_MASK
 	uavTalkObject.length = byteArrayToInt16(packet[2:4])
 	uavTalkObject.objectId = byteArrayToInt32(packet[4:8])

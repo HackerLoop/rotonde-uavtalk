@@ -50,9 +50,12 @@ func startAsServer(uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject) {
 					continue
 				}
 
-				data, err := uavdef.uAVTalkToMap(uavTalkObject.data)
-				if err != nil {
-					log.Fatal(err)
+				var data map[string]interface{}
+				if uavTalkObject.cmd == 0 {
+					data, err = uavdef.uAVTalkToMap(uavTalkObject.data)
+					if err != nil {
+						log.Fatal(err)
+					}
 				}
 
 				jsonObject := JSONPackage{uavdef.Name, uavTalkObject.cmd, uavdef.ObjectID, uavTalkObject.instanceId, data}
@@ -93,10 +96,13 @@ func startAsServer(uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject) {
 						continue
 					}
 
-					data, err := uavdef.mapToUAVTalk(content.Data)
-					if err != nil {
-						log.Println(data)
-						continue
+					var data []byte
+					if content.Cmd == 0 {
+						data, err = uavdef.mapToUAVTalk(content.Data)
+						if err != nil {
+							log.Println(data)
+							continue
+						}
 					}
 
 					uavTalkObject, err := newUAVTalkObject(content.Cmd, content.ObjectId, content.InstanceId, data)
