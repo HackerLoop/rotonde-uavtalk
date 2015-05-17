@@ -144,7 +144,11 @@ func newUAVObjectDefinition(filePath string) (*UAVObjectDefinition, error) {
 		if len(field.CloneOf) != 0 {
 			continue
 		}
-		field.Elements = 1
+
+		if field.Elements == 0 {
+			field.Elements = 1
+		}
+
 		if len(field.ElementNamesAttr) > 0 {
 			field.ElementNames = strings.Split(field.ElementNamesAttr, ",")
 			field.Elements = len(field.ElementNames)
@@ -175,7 +179,7 @@ func newUAVObjectDefinition(filePath string) (*UAVObjectDefinition, error) {
 		}
 	}
 
-	sort.Sort(uavObject.Fields)
+	sort.Stable(uavObject.Fields)
 
 	uavObject.calculateId()
 
@@ -190,6 +194,15 @@ func getUAVObjectDefinitionForObjectID(objectID uint32) (*UAVObjectDefinition, e
 		}
 	}
 	return nil, errors.New(fmt.Sprint(objectID, " Not found"))
+}
+
+// TODO: refac
+func isUniqueInstanceForObjectID(objectID uint32) (bool, error) {
+	uavdef, err := getUAVObjectDefinitionForObjectID(objectID)
+	if err != nil {
+		return true, err
+	}
+	return uavdef.SingleInstance, nil
 }
 
 func loadUAVObjectDefinitions(dir string) error {

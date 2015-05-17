@@ -13,8 +13,8 @@ func main() {
 
 	loadUAVObjectDefinitions(os.Args[1])
 
-	uavChan := make(chan *UAVTalkObject, 300)
-	jsonChan := make(chan *UAVTalkObject, 300)
+	uavChan := make(chan *UAVTalkObject, 100)
+	jsonChan := make(chan *UAVTalkObject, 100)
 	startUAVTalk(uavChan, jsonChan)
 	startAsServer(uavChan, jsonChan)
 

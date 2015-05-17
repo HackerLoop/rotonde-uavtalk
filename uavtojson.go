@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	//"log"
 )
 
 /**
@@ -42,12 +43,30 @@ func (field *UAVObjectFieldDefinition) readFromUAVTalk(reader *bytes.Reader) (in
 		result = field.Options[uint8(*(result.(*uint8)))] // haha
 	}
 
+	/*switch typeInfo.name {
+	case "int8":
+		log.Println(field.Name, *result.(*int8))
+	case "int16":
+		log.Println(field.Name, *result.(*int16))
+	case "int32":
+		log.Println(field.Name, *result.(*int32))
+	case "uint8":
+		log.Println(field.Name, *result.(*uint8))
+	case "uint16":
+		log.Println(field.Name, *result.(*uint16))
+	case "uint32":
+		log.Println(field.Name, *result.(*uint32))
+	case "float":
+		log.Println(field.Name, *result.(*float32))
+	case "enum":
+		log.Println(field.Name, result.(string))
+	}*/
 	return result, nil
 }
 
 func (field *UAVObjectFieldDefinition) uAVTalkToInterface(reader *bytes.Reader) (interface{}, error) {
 	var result interface{}
-	if field.Elements > 1 {
+	if field.Elements > 1 && len(field.ElementNames) == 0 {
 		resultArray := make([]interface{}, field.Elements)
 		for i := 0; i < field.Elements; i++ {
 			value, err := field.readFromUAVTalk(reader)
@@ -57,6 +76,16 @@ func (field *UAVObjectFieldDefinition) uAVTalkToInterface(reader *bytes.Reader) 
 			resultArray[i] = value
 		}
 		result = resultArray
+	} else if field.Elements > 1 && len(field.ElementNames) > 0 {
+		resultMap := make(map[string]interface{}, field.Elements)
+		for i := 0; i < field.Elements; i++ {
+			value, err := field.readFromUAVTalk(reader)
+			if err != nil {
+				return nil, err
+			}
+			resultMap[field.ElementNames[i]] = value
+		}
+		result = resultMap
 	} else {
 		value, err := field.readFromUAVTalk(reader)
 		if err != nil {

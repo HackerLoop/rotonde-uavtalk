@@ -46,12 +46,12 @@ func startAsServer(uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject) {
 			for uavTalkObject := range uavChan {
 				uavdef, err := getUAVObjectDefinitionForObjectID(uavTalkObject.objectId)
 				if err != nil {
-					//log.Println(err)
+					log.Println(err)
 					continue
 				}
 
 				var data map[string]interface{}
-				if uavTalkObject.cmd == 0 {
+				if uavTalkObject.cmd == 0 || uavTalkObject.cmd == 2 {
 					data, err = uavdef.uAVTalkToMap(uavTalkObject.data)
 					if err != nil {
 						log.Fatal(err)
@@ -59,10 +59,10 @@ func startAsServer(uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject) {
 				}
 
 				jsonObject := JSONPackage{uavdef.Name, uavTalkObject.cmd, uavdef.ObjectID, uavTalkObject.instanceId, data}
-
 				json, err := json.Marshal(&jsonObject)
 				if err != nil {
-					log.Fatal(err)
+					log.Println(err)
+					continue
 				}
 				//log.Printf("%30s : %s\n", uavdef.Name, string(json))
 				if err := conn.WriteMessage(websocket.TextMessage, json); err != nil {
@@ -97,7 +97,7 @@ func startAsServer(uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject) {
 					}
 
 					var data []byte
-					if content.Cmd == 0 {
+					if content.Cmd == 0 || content.Cmd == 2 {
 						data, err = uavdef.mapToUAVTalk(content.Data)
 						if err != nil {
 							log.Println(data)

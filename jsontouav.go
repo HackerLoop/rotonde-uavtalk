@@ -4,32 +4,45 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 /**
  * UAVObjectFieldDefinition
  */
 
+func (field *UAVObjectFieldDefinition) valueForEnumString(option string) (uint8, error) {
+	for val, opt := range field.Options {
+		if opt == option {
+			return uint8(val), nil
+		}
+	}
+	return 0, errors.New(fmt.Sprintf("%s enum option not found", option))
+}
+
 func (field *UAVObjectFieldDefinition) writeToUAVTalk(writer *bytes.Buffer, value interface{}) error {
 	typeInfo := field.fieldTypeInfo
 	var result interface{}
 	switch typeInfo.name {
 	case "int8":
-		result = value.(uint8)
+		result = uint8(value.(float64))
 	case "int16":
-		result = value.(uint16)
+		result = int16(value.(float64))
 	case "int32":
-		result = value.(int32)
+		result = int32(value.(float64))
 	case "uint8":
-		result = value.(uint8)
+		result = uint8(value.(float64))
 	case "uint16":
-		result = value.(uint16)
+		result = uint16(value.(float64))
 	case "uint32":
-		result = value.(uint32)
+		result = uint32(value.(float64))
 	case "float":
 		result = float32(value.(float64))
 	case "enum":
-		result = value.(uint8)
+		var err error
+		if result, err = field.valueForEnumString(value.(string)); err != nil {
+			return err
+		}
 	}
 	if result == nil {
 		return errors.New("Could not read from typeInfo.")
@@ -38,15 +51,11 @@ func (field *UAVObjectFieldDefinition) writeToUAVTalk(writer *bytes.Buffer, valu
 		return err
 	}
 
-	if typeInfo.name == "enum" {
-		result = field.Options[*(result.(*uint8))] // haha
-	}
-
 	return nil
 }
 
 func (field *UAVObjectFieldDefinition) interfaceToUAVTalk(writer *bytes.Buffer, value interface{}) error {
-	if field.Elements > 1 {
+	if field.Elements > 1 && len(field.ElementNames) == 0 {
 		valueArray, ok := value.([]interface{})
 
 		if ok == false {
@@ -54,6 +63,20 @@ func (field *UAVObjectFieldDefinition) interfaceToUAVTalk(writer *bytes.Buffer, 
 		}
 
 		for _, value := range valueArray {
+			if err := field.writeToUAVTalk(writer, value); err != nil {
+				return err
+			}
+		}
+	} else if field.Elements > 1 && len(field.ElementNames) > 0 {
+		valueMap, ok := value.(map[string]interface{})
+
+		if ok == false {
+			return errors.New("Value should be a map for fields with Elements > 1")
+		}
+
+		for _, name := range field.ElementNames {
+			value := valueMap[name]
+			fmt.Println(name)
 			if err := field.writeToUAVTalk(writer, value); err != nil {
 				return err
 			}

@@ -12,6 +12,7 @@ import (
 // TODO: refactor for better value reading (encoding/binary)
 
 const VER_MASK = 0x20
+const SHORT_HEADER_LENGTH = 8
 
 type UAVTalkObject struct {
 	cmd        uint8
@@ -40,8 +41,10 @@ func (uavTalkObject *UAVTalkObject) toBinary() ([]byte, error) {
 		return nil, err
 	}
 
-	if err := binary.Write(writer, binary.LittleEndian, uavTalkObject.instanceId); err != nil {
-		return nil, err
+	if unique, _ := isUniqueInstanceForObjectID(uavTalkObject.objectId); !unique {
+		if err := binary.Write(writer, binary.LittleEndian, uavTalkObject.instanceId); err != nil {
+			return nil, err
+		}
 	}
 
 	if uavTalkObject.cmd == 0 || uavTalkObject.cmd == 2 {
@@ -74,8 +77,10 @@ func byteArrayToInt16(b []byte) uint16 {
 	return (uint16(b[1]) << 8) | (uint16(b[0]))
 }
 
+// TODO: find a better way to check if a packet is complete
 func packetComplete(packet []byte) (bool, int, int) {
-	var offset int = -1
+	headerSize := SHORT_HEADER_LENGTH
+	offset := -1
 	for i := 0; i < len(packet); i++ {
 		if packet[i] == 0x3c {
 			offset = i
@@ -87,9 +92,15 @@ func packetComplete(packet []byte) (bool, int, int) {
 		return false, 0, 0
 	}
 
+	// TODO: refac double call with newUAVTalkObjectFromBinary
+	objectId := byteArrayToInt32(packet[4:8])
+	if unique, _ := isUniqueInstanceForObjectID(objectId); !unique {
+		headerSize += 2
+	}
+
 	frame := packet[offset:]
 
-	if len(frame) < 11 {
+	if len(frame) < headerSize+1 {
 		return false, 0, 0
 	}
 
@@ -109,18 +120,20 @@ func packetComplete(packet []byte) (bool, int, int) {
 }
 
 func newUAVTalkObjectFromBinary(packet []byte) (*UAVTalkObject, error) {
+	headerSize := SHORT_HEADER_LENGTH
 	uavTalkObject := &UAVTalkObject{}
 
-	if packet[1] != 0x20 {
-		fmt.Printf("%x\n", packet[1])
-	}
 	uavTalkObject.cmd = packet[1] ^ VER_MASK
 	uavTalkObject.length = byteArrayToInt16(packet[2:4])
 	uavTalkObject.objectId = byteArrayToInt32(packet[4:8])
-	uavTalkObject.instanceId = byteArrayToInt16(packet[8:10])
 
-	uavTalkObject.data = make([]byte, uavTalkObject.length-10)
-	copy(uavTalkObject.data, packet[10:len(packet)-1])
+	if unique, _ := isUniqueInstanceForObjectID(uavTalkObject.objectId); !unique {
+		uavTalkObject.instanceId = byteArrayToInt16(packet[8:10])
+		headerSize += 2
+	}
+
+	uavTalkObject.data = make([]byte, int(uavTalkObject.length)-headerSize)
+	copy(uavTalkObject.data, packet[headerSize:len(packet)-1])
 
 	return uavTalkObject, nil
 }
@@ -130,7 +143,11 @@ func newUAVTalkObject(cmd uint8, objectId uint32, instanceId uint16, data []byte
 	uavTalkObject.cmd = cmd
 	uavTalkObject.objectId = objectId
 	uavTalkObject.instanceId = instanceId
-	uavTalkObject.length = uint16(10 + len(data))
+	if unique, _ := isUniqueInstanceForObjectID(uavTalkObject.objectId); !unique {
+		uavTalkObject.length = uint16(SHORT_HEADER_LENGTH + len(data) + 2)
+	} else {
+		uavTalkObject.length = uint16(SHORT_HEADER_LENGTH + len(data))
+	}
 	uavTalkObject.data = data
 	return uavTalkObject, nil
 }
@@ -152,9 +169,9 @@ func startHID(stopChan chan bool, uavChan chan *UAVTalkObject, jsonChan chan *UA
 		log.Fatal(err)
 	}
 	defer cc.Close()
-	defer log.Println("stopping HID")
+	defer log.Println("Closing HID")
 
-	log.Println("starting HID")
+	log.Println("Starting HID")
 
 	uavStopChan := make(chan bool)
 	// uav goroutine
@@ -164,24 +181,28 @@ func startHID(stopChan chan bool, uavChan chan *UAVTalkObject, jsonChan chan *UA
 		for {
 			select {
 			case <-uavStopChan:
+				log.Println("Closing <- HID goroutine")
 				return
 			default:
 			}
 
-			n, err := cc.Read(buffer)
+			_, err := cc.Read(buffer)
 			if err != nil {
-				panic(err)
+				log.Fatal(err)
 			}
 
-			packet = append(packet[len(packet):], buffer[2:n]...)
+			//log.Println(n)
+			//printHex(buffer[2:2+buffer[1]], int(buffer[1]))
+
+			packet = append(packet[len(packet):], buffer[2:2+buffer[1]]...)
 
 			for {
 				ok, from, to := packetComplete(packet)
 				if ok != true {
 					break
 				}
-				//printHex(packet[from:to], to-from)
 				if uavTalkObject, err := newUAVTalkObjectFromBinary(packet[from:to]); err == nil {
+					//log.Println(uavTalkObject)
 					uavChan <- uavTalkObject
 				} else {
 					log.Println(err)
@@ -198,6 +219,7 @@ func startHID(stopChan chan bool, uavChan chan *UAVTalkObject, jsonChan chan *UA
 		for {
 			select {
 			case <-jsonStopChan:
+				log.Println("Closing -> HID goroutine")
 				return
 			case uavTalkObject := <-jsonChan:
 				binaryObj, err := uavTalkObject.toBinary()
@@ -205,13 +227,14 @@ func startHID(stopChan chan bool, uavChan chan *UAVTalkObject, jsonChan chan *UA
 					log.Println(err)
 					continue
 				}
-				printHex(binaryObj, len(binaryObj))
+				binaryObj = append([]byte{0x01, byte(len(binaryObj))}, binaryObj...)
+				//printHex(binaryObj, len(binaryObj))
 
-				n, err := cc.Write(binaryObj)
+				_, err = cc.Write(binaryObj)
 				if err != nil {
 					panic(err)
 				}
-				log.Println("Bytes sent", n)
+				//log.Println("Bytes sent", n)
 			}
 		}
 	}()
