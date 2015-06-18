@@ -23,15 +23,15 @@ through UAVObjects transit as JSON, instead of binary.
 
 So instead of sending something like this:
 
-  3C 22 1D 00 E8 B7 75 3F 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 E5
+    3C 22 1D 00 E8 B7 75 3F 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 E5
 
 You just send something like this:
 
-  {
-    Status: 'Connected',
-    TxDataRate: 0,
-    RxDataRate: 0,
-    TxFailures: 0,
-    RxFailures: 0,
-    TxRetries: 0
-  }
+    {
+      Status: 'Connected',
+      TxDataRate: 0,
+      RxDataRate: 0,
+      TxFailures: 0,
+      RxFailures: 0,
+      TxRetries: 0
+    }
