@@ -18,4 +18,20 @@ the flight controller managing the engines' power to stabilize the drone.
 
 - [list of UAVObjects]()
 
-What the bridge does is manage the USB connection, and give you a clean JSON websocket.
+What the bridge does is manage the USB connection, and give you a clean JSON websocket
+through UAVObjects transit as JSON, instead of binary.
+
+So instead of sending something like this:
+
+  3C 22 1D 00 E8 B7 75 3F 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 E5
+
+You just send something like this:
+
+  {
+    Status: 'Connected',
+    TxDataRate: 0,
+    RxDataRate: 0,
+    TxFailures: 0,
+    RxFailures: 0,
+    TxRetries: 0
+  }
