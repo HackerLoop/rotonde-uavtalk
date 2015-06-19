@@ -164,7 +164,7 @@ func printHex(buffer []byte, n int) {
 }
 
 func startHID(stopChan chan bool, uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject) {
-	cc, err := hid.Open(0x20a0, 0x41d0, "")
+	cc, err := hid.Open(0x20a0, 0x415b, "")
 	if err != nil {
 		log.Fatal(err)
 	}
