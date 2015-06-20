@@ -35,3 +35,9 @@ You just send something like this:
       RxFailures: 0,
       TxRetries: 0
     }
+
+## Installation 
+
+Bridge has *go.hid* as a dependency and this package requires [HIDAPI
+library](https://github.com/signal11/hidapi) to be installed on your
+system. 
