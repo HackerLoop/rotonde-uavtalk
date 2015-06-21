@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -8,15 +9,18 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		log.Fatal(fmt.Sprintf("Usage: %s uavobject_directory", os.Args[0]))
+		log.Fatal(fmt.Sprintf("Usage: %s uavobject_directory/", os.Args[0]))
 	}
 
-	loadUAVObjectDefinitions(os.Args[1])
+	port := flag.Int("port", 4224, "port the websocket will listen on")
+	flag.Parse()
+
+	loadUAVObjectDefinitions(flag.Args()[0])
 
 	uavChan := make(chan *UAVTalkObject, 100)
 	jsonChan := make(chan *UAVTalkObject, 100)
 	startUAVTalk(uavChan, jsonChan)
-	startAsServer(uavChan, jsonChan)
+	startAsServer(uavChan, jsonChan, *port)
 
 	select {}
 

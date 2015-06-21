@@ -27,8 +27,10 @@ You can easily find them by cloning [Taulabs](https://github.com/TauLabs/TauLabs
 
 ```
 $ ./bridge uavobjectdefinition/
-2015/06/21 14:43:07 Websocket server started
+2015/06/21 14:43:07 Websocket server started on port 4242
 ```
+
+Port to listen on can be specified with `-port PORT`.
 
 ## How it works
 

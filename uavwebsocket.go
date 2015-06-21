@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -17,7 +18,7 @@ type JSONPackage struct {
 	Data       map[string]interface{}
 }
 
-func startAsServer(uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject) {
+func startAsServer(uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject, port int) {
 
 	var upgrader = websocket.Upgrader{
 		ReadBufferSize:  2048,
@@ -35,6 +36,7 @@ func startAsServer(uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject) {
 		}
 		defer closeUAVChan()
 		defer conn.Close()
+
 		openUAVChan()
 
 		websocket.WriteJSON(conn, uavObjectDefinitions)
@@ -119,6 +121,6 @@ func startAsServer(uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject) {
 		wg.Wait()
 	})
 
-	go http.ListenAndServe(":4242", nil)
-	log.Println("Websocket server started on port 4242")
+	go http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+	log.Println(fmt.Sprintf("Websocket server started on port %d", port))
 }
