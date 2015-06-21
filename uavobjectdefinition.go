@@ -105,13 +105,13 @@ type UAVObjectDefinition struct {
 	} `xml:"access" json:"access"`
 
 	TelemetryGcs struct {
-		Acked      string `xml:"acked,attr" json:"acked"` // TODO shouldn't it be boolean ?
+		Acked      bool   `xml:"acked,attr" json:"acked"` // TODO shouldn't it be boolean ?
 		UpdateMode string `xml:"updatemode,attr" json:"updateMode"`
 		Period     string `xml:"period,attr" json:"period"`
 	} `xml:"telemetrygcs" json:"telemetryGcs"`
 
 	TelemetryFlight struct {
-		Acked      string `xml:"acked,attr" json:"acked"`
+		Acked      bool   `xml:"acked,attr" json:"acked"`
 		UpdateMode string `xml:"updatemode,attr" json:"updateMode"`
 		Period     string `xml:"period,attr" json:"period"`
 	} `xml:"telemetryflight" json:"telemetryFlight"`
