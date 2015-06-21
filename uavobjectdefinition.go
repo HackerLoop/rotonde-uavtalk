@@ -74,54 +74,54 @@ func (fields FieldSlice) Swap(i, j int) {
 
 // uavObjectDefinitions models
 type UAVObjectFieldDefinition struct {
-	Name  string `xml:"name,attr"`
-	Units string `xml:"units,attr"`
-	Type  string `xml:"type,attr"`
+	Name  string `xml:"name,attr" json:"name"`
+	Units string `xml:"units,attr" json:"units"`
+	Type  string `xml:"type,attr" json:"type"`
 
 	fieldTypeInfo *FieldTypeInfo
 
-	Elements         int      `xml:"elements,attr"`
+	Elements         int      `xml:"elements,attr" json:"elements"`
 	ElementNamesAttr string   `xml:"elementnames,attr" json:"-"`
-	ElementNames     []string `xml:"elementnames>elementname"`
+	ElementNames     []string `xml:"elementnames>elementname" json:"elementsName"`
 	OptionsAttr      string   `xml:"options,attr" json:"-"`
-	Options          []string `xml:"options>option"`
-	DefaultValue     string   `xml:"defaultvalue,attr"`
+	Options          []string `xml:"options>option" json:"options"`
+	DefaultValue     string   `xml:"defaultvalue,attr" json:"defaultValue"`
 
-	CloneOf string `xml:"cloneof,attr"`
+	CloneOf string `xml:"cloneof,attr" json:"cloneOf"`
 }
 
 type UAVObjectDefinition struct {
-	Name           string `xml:"name,attr"`
-	Description    string `xml:"description"`
-	SingleInstance bool   `xml:"singleinstance,attr"`
-	Settings       bool   `xml:"settings,attr"`
-	Category       string `xml:"category,attr"`
+	Name           string `xml:"name,attr" json:"name"`
+	Description    string `xml:"description" json:"description"`
+	SingleInstance bool   `xml:"singleinstance,attr" json:"singleInstance"`
+	Settings       bool   `xml:"settings,attr" json:"settings"`
+	Category       string `xml:"category,attr" json:"category"`
 
-	ObjectID uint32
+	ObjectID uint32 `json:"id"`
 
 	Access struct {
-		Gcs    string `xml:"gcs,attr"`
-		Flight string `xml:"flight,attr"`
-	} `xml:"access"`
+		Gcs    string `xml:"gcs,attr" json:"gcs"`
+		Flight string `xml:"flight,attr" json:"flight"`
+	} `xml:"access" json:"access"`
 
 	TelemetryGcs struct {
-		Acked      string `xml:"acked,attr"`
-		UpdateMode string `xml:"updatemode,attr"`
-		Period     string `xml:"period,attr"`
-	} `xml:"telemetrygcs"`
+		Acked      string `xml:"acked,attr" json:"acked"` // TODO shouldn't it be boolean ?
+		UpdateMode string `xml:"updatemode,attr" json:"updateMode"`
+		Period     string `xml:"period,attr" json:"period"`
+	} `xml:"telemetrygcs" json:"telemetryGcs"`
 
 	TelemetryFlight struct {
-		Acked      string `xml:"acked,attr"`
-		UpdateMode string `xml:"updatemode,attr"`
-		Period     string `xml:"period,attr"`
-	} `xml:"telemetryflight"`
+		Acked      string `xml:"acked,attr" json:"acked"`
+		UpdateMode string `xml:"updatemode,attr" json:"updateMode"`
+		Period     string `xml:"period,attr" json:"period"`
+	} `xml:"telemetryflight" json:"telemetryFlight"`
 
 	Logging struct {
-		UpdateMode string `xml:"updatemode,attr"`
-		Period     string `xml:"period,attr"`
-	} `xml:"logging"`
+		UpdateMode string `xml:"updatemode,attr" json:"updateMode"`
+		Period     string `xml:"period,attr" json:"period"`
+	} `xml:"logging" json:"logging"`
 
-	Fields FieldSlice `xml:"field"`
+	Fields FieldSlice `xml:"field" json:"fields"`
 }
 
 func newUAVObjectDefinition(filePath string) (*UAVObjectDefinition, error) {
