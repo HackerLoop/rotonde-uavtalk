@@ -38,7 +38,8 @@ and give the ability to communicate with the modules currently activated on the 
 For example, updating the ManualControlCommand UAVObject's attributes gives control over the drone orientation in air,
 the flight controller managing the engines' power to stabilize the drone.
 
-- [list of UAVObjects]()
+- [list of
+  UAVObjects](https://gist.github.com/jhchabran/972ad7660398f478d990)
 
 What the bridge does is manage the USB connection, and give you a clean JSON websocket
 through UAVObjects transit as JSON, instead of binary.
