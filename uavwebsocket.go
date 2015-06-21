@@ -120,5 +120,5 @@ func startAsServer(uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject) {
 	})
 
 	go http.ListenAndServe(":4242", nil)
-	log.Println("Websocket server started")
+	log.Println("Websocket server started on port 4242")
 }
