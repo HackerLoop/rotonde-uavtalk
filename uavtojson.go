@@ -31,10 +31,10 @@ func (field *UAVObjectFieldDefinition) readFromUAVTalk(reader *bytes.Reader) (in
 		result = new(float32)
 	case "enum":
 		result = new(uint8)
-	}
-	if result == nil {
+	default:
 		return nil, errors.New("Could not read from typeInfo.")
 	}
+
 	if err := binary.Read(reader, binary.LittleEndian, result); err != nil {
 		return nil, err
 	}
