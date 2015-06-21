@@ -1,12 +1,34 @@
 # bridge
 
-## Tl;Dr
+## TL;DR
 
 In an effort to get the taulabs flight controller usable from (but not exclusively) javascript,
 we created this bridge which main purpose is to get the telemetry coming from
 the USB HID connection accessible as a bi-directional stream of JSON over a websocket. *breathe*
 
-## Compile & Run
+## Installation
+
+### Dependencies
+
+- [Go](http://golang.org/)
+- `$GOPATH` properly set
+- [*go.hid*](https://github.com/GeertJohan/go.hid) as a dependency requires [HIDAPI
+library](https://github.com/signal11/hidapi) to be installed on your
+system.  
+
+### Compiling
+
+`go build`
+
+### Running 
+
+A path to a folder containing UAVobjects definitions must be provided.
+You can easily find them by cloning [Taulabs](https://github.com/TauLabs/TauLabs) in the folder `shared/uavobjectdefinition`.
+
+```
+$ ./bridge uavobjectdefinition/
+2015/06/21 14:43:07 Websocket server started
+```
 
 ## How it works
 
@@ -36,8 +58,3 @@ You just send something like this:
       TxRetries: 0
     }
 
-## Installation 
-
-Bridge has *go.hid* as a dependency and this package requires [HIDAPI
-library](https://github.com/signal11/hidapi) to be installed on your
-system. 
