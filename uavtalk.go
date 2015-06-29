@@ -232,7 +232,7 @@ func startHID(stopChan chan bool, uavChan chan *UAVTalkObject, jsonChan chan *UA
 
 				_, err = cc.Write(binaryObj)
 				if err != nil {
-					panic(err)
+					log.Fatal(err)
 				}
 				//log.Println("Bytes sent", n)
 			}
