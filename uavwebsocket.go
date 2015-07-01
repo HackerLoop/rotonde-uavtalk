@@ -11,11 +11,11 @@ import (
 )
 
 type JSONPackage struct {
-	Name       string
-	Cmd        uint8
-	ObjectId   uint32
-	InstanceId uint16
-	Data       map[string]interface{}
+	Name       string                 `json:"name"`
+	Cmd        uint8                  `json:"cmd"`
+	ObjectId   uint32                 `json:"objectId"`
+	InstanceId uint16                 `json:"instanceId"`
+	Data       map[string]interface{} `json:"data"`
 }
 
 func startAsServer(uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject, port int) {
