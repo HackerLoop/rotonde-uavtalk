@@ -49,9 +49,9 @@ func (t TypeIndex) fieldTypeForString(ts string) (*FieldTypeInfo, error) {
 }
 
 // sorted slice of fields
-type FieldSlice []*UAVObjectFieldDefinition
+type FieldsSlice []*UAVObjectFieldDefinition
 
-func (fields FieldSlice) fieldForName(name string) (*UAVObjectFieldDefinition, error) {
+func (fields FieldsSlice) fieldForName(name string) (*UAVObjectFieldDefinition, error) {
 	for _, field := range fields {
 		if field.Name == name {
 			return field, nil
@@ -60,15 +60,15 @@ func (fields FieldSlice) fieldForName(name string) (*UAVObjectFieldDefinition, e
 	return nil, errors.New(fmt.Sprintf("Not found field name: %s", name))
 }
 
-func (fields FieldSlice) Len() int {
+func (fields FieldsSlice) Len() int {
 	return len(fields)
 }
 
-func (fields FieldSlice) Less(i, j int) bool {
+func (fields FieldsSlice) Less(i, j int) bool {
 	return fields[i].fieldTypeInfo.size > fields[j].fieldTypeInfo.size
 }
 
-func (fields FieldSlice) Swap(i, j int) {
+func (fields FieldsSlice) Swap(i, j int) {
 	fields[i], fields[j] = fields[j], fields[i]
 }
 
@@ -121,7 +121,7 @@ type UAVObjectDefinition struct {
 		Period     string `xml:"period,attr" json:"period"`
 	} `xml:"logging" json:"logging"`
 
-	Fields FieldSlice `xml:"field" json:"fields"`
+	Fields FieldsSlice `xml:"field" json:"fields"`
 }
 
 func newUAVObjectDefinition(filePath string) (*UAVObjectDefinition, error) {
