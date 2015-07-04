@@ -207,7 +207,7 @@ func startHID(stopChan chan bool, uavChan chan *UAVTalkObject, jsonChan chan *UA
 				} else {
 					log.Println(err)
 				}
-				copy(packet, packet[from:])
+				copy(packet, packet[from:]) // baaaaah !! ring buffer to the rescue ?
 				packet = packet[0 : len(packet)-to]
 			}
 		}

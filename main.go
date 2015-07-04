@@ -3,8 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 func main() {
@@ -23,6 +24,4 @@ func main() {
 	startAsServer(uavChan, jsonChan, *port)
 
 	select {}
-
-	return
 }

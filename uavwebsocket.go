@@ -3,13 +3,16 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"sync"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/websocket"
 )
 
+// JSONPackage is the JSON representation of an UAVTalk package, the Data field contains the UAVObject JSON representation.
+// More infos at https://wiki.openpilot.org/display/WIKI/UAVTalk
+// Warning: the link above might not be totally true in Taulabs, better read the code than the doc.
 type JSONPackage struct {
 	Name       string                 `json:"name"`
 	Cmd        uint8                  `json:"cmd"`
@@ -29,7 +32,7 @@ func startAsServer(uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject, po
 	}
 
 	http.HandleFunc("/uav", func(w http.ResponseWriter, r *http.Request) {
-		log.Println("Connection received")
+		log.Debug("Connection received")
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			log.Fatal(err)
@@ -48,7 +51,7 @@ func startAsServer(uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject, po
 			for uavTalkObject := range uavChan {
 				uavdef, err := getUAVObjectDefinitionForObjectID(uavTalkObject.objectId)
 				if err != nil {
-					log.Println(err)
+					log.Warning(err)
 					continue
 				}
 
@@ -56,21 +59,27 @@ func startAsServer(uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject, po
 				if uavTalkObject.cmd == 0 || uavTalkObject.cmd == 2 {
 					data, err = uavdef.uAVTalkToMap(uavTalkObject.data)
 					if err != nil {
-						log.Fatal(err)
+						log.Warning(err)
+						return
 					}
 				}
 
 				jsonObject := JSONPackage{uavdef.Name, uavTalkObject.cmd, uavdef.ObjectID, uavTalkObject.instanceId, data}
 				json, err := json.Marshal(&jsonObject)
 				if err != nil {
-					log.Println(err)
+					log.Warning(err)
 					continue
 				}
-				//log.Printf("%30s : %s\n", uavdef.Name, string(json))
+
 				if err := conn.WriteMessage(websocket.TextMessage, json); err != nil {
-					log.Println(err)
+					log.Warning(err)
 					return
 				}
+
+				log.WithFields(log.Fields{
+					"ObjectID": uavdef.ObjectID,
+					"Name":     uavdef.Name,
+				}).Debug("UAVObject to websocket client")
 			}
 		}()
 
@@ -88,13 +97,13 @@ func startAsServer(uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject, po
 					content := JSONPackage{}
 					decoder := json.NewDecoder(reader)
 					if err := decoder.Decode(&content); err != nil {
-						log.Println(err)
+						log.Warning(err)
 						continue
 					}
 
 					uavdef, err := getUAVObjectDefinitionForObjectID(content.ObjectId)
 					if err != nil {
-						log.Println(err)
+						log.Warning(err)
 						continue
 					}
 
@@ -102,16 +111,22 @@ func startAsServer(uavChan chan *UAVTalkObject, jsonChan chan *UAVTalkObject, po
 					if content.Cmd == 0 || content.Cmd == 2 {
 						data, err = uavdef.mapToUAVTalk(content.Data)
 						if err != nil {
-							log.Println(data)
+							log.Warning(data)
 							continue
 						}
 					}
 
 					uavTalkObject, err := newUAVTalkObject(content.Cmd, content.ObjectId, content.InstanceId, data)
 					if err != nil {
-						log.Println(err)
+						log.Warning(err)
 						continue
 					}
+
+					log.WithFields(log.Fields{
+						"ObjectID": uavdef.ObjectID,
+						"Name":     uavdef.Name,
+					}).Debug("UAVObject from websocket client")
+
 					jsonChan <- uavTalkObject
 				}
 			}
