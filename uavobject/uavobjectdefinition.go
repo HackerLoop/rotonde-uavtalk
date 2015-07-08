@@ -55,9 +55,9 @@ func NewDefinitions(dir string) (Definitions, error) {
 
 // FieldTypeInfo Taulabs defines its fields as type names, with a given size implicitely implied
 type FieldTypeInfo struct {
-	index int
-	name  string
-	size  int
+	Index int
+	Name  string
+	Size  int
 }
 
 // TypeIndex holds a slice of *FieldTypeInfo, adds helper methods
@@ -77,7 +77,7 @@ var typeInfos = TypeIndex{
 // FieldTypeForString _
 func (t TypeIndex) FieldTypeForString(ts string) (*FieldTypeInfo, error) {
 	for _, fieldTypeInfo := range typeInfos {
-		if fieldTypeInfo.name == ts {
+		if fieldTypeInfo.Name == ts {
 			return fieldTypeInfo, nil
 		}
 	}
@@ -101,7 +101,7 @@ func (fields FieldsSlice) Len() int {
 }
 
 func (fields FieldsSlice) Less(i, j int) bool {
-	return fields[i].fieldTypeInfo.size > fields[j].fieldTypeInfo.size
+	return fields[i].FieldTypeInfo.Size > fields[j].FieldTypeInfo.Size
 }
 
 func (fields FieldsSlice) Swap(i, j int) {
@@ -114,7 +114,7 @@ type FieldDefinition struct {
 	Units string `xml:"units,attr" json:"units"`
 	Type  string `xml:"type,attr" json:"type"`
 
-	fieldTypeInfo *FieldTypeInfo
+	FieldTypeInfo *FieldTypeInfo
 
 	Elements         int      `xml:"elements,attr" json:"elements"`
 	ElementNamesAttr string   `xml:"elementnames,attr" json:"-"`
@@ -142,7 +142,7 @@ type Definition struct {
 	} `xml:"access" json:"access"`
 
 	TelemetryGcs struct {
-		Acked      bool   `xml:"acked,attr" json:"acked"` // TODO shouldn't it be boolean ?
+		Acked      bool   `xml:"acked,attr" json:"acked"`
 		UpdateMode string `xml:"updatemode,attr" json:"updateMode"`
 		Period     string `xml:"period,attr" json:"period"`
 	} `xml:"telemetrygcs" json:"telemetryGcs"`
@@ -198,7 +198,7 @@ func NewDefinition(filePath string) (*Definition, error) {
 			field.Options = strings.Split(field.OptionsAttr, ",")
 		}
 
-		field.fieldTypeInfo, err = typeInfos.FieldTypeForString(field.Type)
+		field.FieldTypeInfo, err = typeInfos.FieldTypeForString(field.Type)
 		if err != nil {
 			return nil, err
 		}

@@ -1,29 +1,27 @@
-package main
+package usbconnection
 
 import (
 	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
+
+	"github.com/openflylab/bridge/uavobject"
 )
 
-/**
- * UAVObjectFieldDefinition
- */
-
-func (field *UAVObjectFieldDefinition) valueForEnumString(option string) (uint8, error) {
+func valueForEnumString(field *uavobject.FieldDefinition, option string) (uint8, error) {
 	for val, opt := range field.Options {
 		if opt == option {
 			return uint8(val), nil
 		}
 	}
-	return 0, errors.New(fmt.Sprintf("%s enum option not found", option))
+	return 0, fmt.Errorf("%s enum option not found", option)
 }
 
-func (field *UAVObjectFieldDefinition) writeToUAVTalk(writer *bytes.Buffer, value interface{}) error {
-	typeInfo := field.fieldTypeInfo
+func writeToUAVTalk(field *uavobject.FieldDefinition, writer *bytes.Buffer, value interface{}) error {
+	typeInfo := field.FieldTypeInfo
 	var result interface{}
-	switch typeInfo.name {
+	switch typeInfo.Name {
 	case "int8":
 		result = uint8(value.(float64))
 	case "int16":
@@ -40,7 +38,7 @@ func (field *UAVObjectFieldDefinition) writeToUAVTalk(writer *bytes.Buffer, valu
 		result = float32(value.(float64))
 	case "enum":
 		var err error
-		if result, err = field.valueForEnumString(value.(string)); err != nil {
+		if result, err = valueForEnumString(field, value.(string)); err != nil {
 			return err
 		}
 	}
@@ -54,7 +52,7 @@ func (field *UAVObjectFieldDefinition) writeToUAVTalk(writer *bytes.Buffer, valu
 	return nil
 }
 
-func (field *UAVObjectFieldDefinition) interfaceToUAVTalk(writer *bytes.Buffer, value interface{}) error {
+func interfaceToUAVTalk(field *uavobject.FieldDefinition, writer *bytes.Buffer, value interface{}) error {
 	if field.Elements > 1 && len(field.ElementNames) == 0 {
 		valueArray, ok := value.([]interface{})
 
@@ -63,7 +61,7 @@ func (field *UAVObjectFieldDefinition) interfaceToUAVTalk(writer *bytes.Buffer, 
 		}
 
 		for _, value := range valueArray {
-			if err := field.writeToUAVTalk(writer, value); err != nil {
+			if err := writeToUAVTalk(field, writer, value); err != nil {
 				return err
 			}
 		}
@@ -71,32 +69,28 @@ func (field *UAVObjectFieldDefinition) interfaceToUAVTalk(writer *bytes.Buffer, 
 		valueMap, ok := value.(map[string]interface{})
 
 		if ok == false {
-			return errors.New("Value should be a map for fields with Elements > 1")
+			return errors.New("Value should be a map of fields with Elements > 1")
 		}
 
 		for _, name := range field.ElementNames {
 			value := valueMap[name]
 			fmt.Println(name)
-			if err := field.writeToUAVTalk(writer, value); err != nil {
+			if err := writeToUAVTalk(field, writer, value); err != nil {
 				return err
 			}
 		}
 	} else {
-		if err := field.writeToUAVTalk(writer, value); err != nil {
+		if err := writeToUAVTalk(field, writer, value); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-/**
- * UAVObjectDefinition
- */
-
-func (uavdef *UAVObjectDefinition) mapToUAVTalk(data map[string]interface{}) ([]byte, error) {
+func mapToUAVTalk(uavdef *uavobject.Definition, data map[string]interface{}) ([]byte, error) {
 	writer := new(bytes.Buffer)
 	for _, field := range uavdef.Fields {
-		if err := field.interfaceToUAVTalk(writer, data[field.Name]); err != nil {
+		if err := interfaceToUAVTalk(field, writer, data[field.Name]); err != nil {
 			return nil, err
 		}
 	}

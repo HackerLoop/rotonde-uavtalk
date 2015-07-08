@@ -1,20 +1,18 @@
-package main
+package usbconnection
 
 import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+
+	"github.com/openflylab/bridge/uavobject"
 	//"log"
 )
 
-/**
- * UAVObjectFieldDefinition
- */
-
-func (field *UAVObjectFieldDefinition) readFromUAVTalk(reader *bytes.Reader) (interface{}, error) {
-	typeInfo := field.fieldTypeInfo
+func readFromUAVTalk(field *uavobject.FieldDefinition, reader *bytes.Reader) (interface{}, error) {
+	typeInfo := field.FieldTypeInfo
 	var result interface{}
-	switch typeInfo.name {
+	switch typeInfo.Name {
 	case "int8":
 		result = new(uint8)
 	case "int16":
@@ -39,7 +37,7 @@ func (field *UAVObjectFieldDefinition) readFromUAVTalk(reader *bytes.Reader) (in
 		return nil, err
 	}
 
-	if typeInfo.name == "enum" {
+	if typeInfo.Name == "enum" {
 		result = field.Options[uint8(*(result.(*uint8)))] // haha
 	}
 
@@ -64,12 +62,12 @@ func (field *UAVObjectFieldDefinition) readFromUAVTalk(reader *bytes.Reader) (in
 	return result, nil
 }
 
-func (field *UAVObjectFieldDefinition) uAVTalkToInterface(reader *bytes.Reader) (interface{}, error) {
+func uAVTalkToInterface(field *uavobject.FieldDefinition, reader *bytes.Reader) (interface{}, error) {
 	var result interface{}
 	if field.Elements > 1 && len(field.ElementNames) == 0 {
 		resultArray := make([]interface{}, field.Elements)
 		for i := 0; i < field.Elements; i++ {
-			value, err := field.readFromUAVTalk(reader)
+			value, err := readFromUAVTalk(field, reader)
 			if err != nil {
 				return nil, err
 			}
@@ -79,7 +77,7 @@ func (field *UAVObjectFieldDefinition) uAVTalkToInterface(reader *bytes.Reader) 
 	} else if field.Elements > 1 && len(field.ElementNames) > 0 {
 		resultMap := make(map[string]interface{}, field.Elements)
 		for i := 0; i < field.Elements; i++ {
-			value, err := field.readFromUAVTalk(reader)
+			value, err := readFromUAVTalk(field, reader)
 			if err != nil {
 				return nil, err
 			}
@@ -87,7 +85,7 @@ func (field *UAVObjectFieldDefinition) uAVTalkToInterface(reader *bytes.Reader) 
 		}
 		result = resultMap
 	} else {
-		value, err := field.readFromUAVTalk(reader)
+		value, err := readFromUAVTalk(field, reader)
 		if err != nil {
 			return nil, err
 		}
@@ -96,15 +94,11 @@ func (field *UAVObjectFieldDefinition) uAVTalkToInterface(reader *bytes.Reader) 
 	return result, nil
 }
 
-/**
- * UAVObjectDefinition
- */
-
-func (uavdef *UAVObjectDefinition) uAVTalkToMap(data []byte) (map[string]interface{}, error) {
+func uAVTalkToMap(uavdef *uavobject.Definition, data []byte) (map[string]interface{}, error) {
 	reader := bytes.NewReader(data)
 	result := make(map[string]interface{})
 	for _, field := range uavdef.Fields {
-		value, err := field.uAVTalkToInterface(reader)
+		value, err := uAVTalkToInterface(field, reader)
 		if err != nil {
 			return nil, err
 		}

@@ -23,7 +23,6 @@ type Packet struct {
 
 // Start the websocket server, each peer connecting to this websocket will be added as connection to the dispatcher
 func Start(d *dispatcher.Dispatcher, port int) {
-
 	var upgrader = websocket.Upgrader{
 		ReadBufferSize:  2048,
 		WriteBufferSize: 2048,

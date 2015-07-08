@@ -56,7 +56,7 @@ func (uavdef *Definition) calculateID() {
 	for _, field := range uavdef.Fields {
 		hash.updateHashWithString(field.Name)
 		hash.updateHashWithInt(uint32(field.Elements))
-		hash.updateHashWithInt(uint32(field.fieldTypeInfo.index))
+		hash.updateHashWithInt(uint32(field.FieldTypeInfo.Index))
 
 		if field.Type == "enum" {
 			for _, option := range field.Options {
