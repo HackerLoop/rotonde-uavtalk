@@ -1,4 +1,4 @@
-package main
+package uavobject
 
 import (
 	//"encoding/binary"
@@ -12,20 +12,55 @@ import (
 	"strings"
 )
 
-/**
- * uavObjectDefinitions storage
- */
-var uavObjectDefinitions []*UAVObjectDefinition
+// Definitions is a slice of Definition, adds findBy
+type Definitions []*Definition
 
-/**
- * Utils
- */
+// GetDefinitionForObjectID _
+func (definitions Definitions) GetDefinitionForObjectID(objectID uint32) (*Definition, error) {
+	for _, definition := range definitions {
+		if definition.ObjectID == objectID {
+			return definition, nil
+		}
+	}
+	return nil, errors.New(fmt.Sprint(objectID, " Not found"))
+}
+
+// IsUniqueInstanceForObjectID an UAVObject is said unique when its number of instances is == 0 (which means, it is not an array)
+func (definitions Definitions) IsUniqueInstanceForObjectID(objectID uint32) (bool, error) {
+	definition, err := definitions.GetDefinitionForObjectID(objectID)
+	if err != nil {
+		return true, err
+	}
+	return definition.SingleInstance, nil
+}
+
+// NewDefinitions loads all xml files from a directory
+func NewDefinitions(dir string) (Definitions, error) {
+	fileInfos, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	definitions := make([]*Definition, 10)
+	for _, fileInfo := range fileInfos {
+		filePath := fmt.Sprintf("%s%s", dir, fileInfo.Name())
+		definition, err := NewDefinition(filePath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		definitions = append(definitions, definition)
+	}
+	return definitions, nil
+}
+
+// FieldTypeInfo Taulabs defines its fields as type names, with a given size implicitely implied
 type FieldTypeInfo struct {
 	index int
 	name  string
 	size  int
 }
 
+// TypeIndex holds a slice of *FieldTypeInfo, adds helper methods
 type TypeIndex []*FieldTypeInfo
 
 var typeInfos = TypeIndex{
@@ -39,25 +74,26 @@ var typeInfos = TypeIndex{
 	&FieldTypeInfo{7, "enum", 1},
 }
 
-func (t TypeIndex) fieldTypeForString(ts string) (*FieldTypeInfo, error) {
+// FieldTypeForString _
+func (t TypeIndex) FieldTypeForString(ts string) (*FieldTypeInfo, error) {
 	for _, fieldTypeInfo := range typeInfos {
 		if fieldTypeInfo.name == ts {
 			return fieldTypeInfo, nil
 		}
 	}
-	return nil, errors.New(fmt.Sprintf("Not found field type: %s", ts))
+	return nil, fmt.Errorf("Not found field type: %s", ts)
 }
 
-// sorted slice of fields
-type FieldsSlice []*UAVObjectFieldDefinition
+// FieldsSlice sortable slice of fields
+type FieldsSlice []*FieldDefinition
 
-func (fields FieldsSlice) fieldForName(name string) (*UAVObjectFieldDefinition, error) {
+func (fields FieldsSlice) fieldForName(name string) (*FieldDefinition, error) {
 	for _, field := range fields {
 		if field.Name == name {
 			return field, nil
 		}
 	}
-	return nil, errors.New(fmt.Sprintf("Not found field name: %s", name))
+	return nil, fmt.Errorf("Not found field name: %s", name)
 }
 
 func (fields FieldsSlice) Len() int {
@@ -72,8 +108,8 @@ func (fields FieldsSlice) Swap(i, j int) {
 	fields[i], fields[j] = fields[j], fields[i]
 }
 
-// uavObjectDefinitions models
-type UAVObjectFieldDefinition struct {
+// FieldDefinition _
+type FieldDefinition struct {
 	Name  string `xml:"name,attr" json:"name"`
 	Units string `xml:"units,attr" json:"units"`
 	Type  string `xml:"type,attr" json:"type"`
@@ -90,7 +126,8 @@ type UAVObjectFieldDefinition struct {
 	CloneOf string `xml:"cloneof,attr" json:"cloneOf"`
 }
 
-type UAVObjectDefinition struct {
+// Definition _
+type Definition struct {
 	Name           string `xml:"name,attr" json:"name"`
 	Description    string `xml:"description" json:"description"`
 	SingleInstance bool   `xml:"singleinstance,attr" json:"singleInstance"`
@@ -124,7 +161,8 @@ type UAVObjectDefinition struct {
 	Fields FieldsSlice `xml:"field" json:"fields"`
 }
 
-func newUAVObjectDefinition(filePath string) (*UAVObjectDefinition, error) {
+// NewDefinition create an Definition from an xml file.
+func NewDefinition(filePath string) (*Definition, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
@@ -133,7 +171,7 @@ func newUAVObjectDefinition(filePath string) (*UAVObjectDefinition, error) {
 	decoder := xml.NewDecoder(file)
 
 	var content = &struct {
-		UAVObject *UAVObjectDefinition `xml:"object"`
+		UAVObject *Definition `xml:"object"`
 	}{}
 	decoder.Decode(content)
 
@@ -160,7 +198,7 @@ func newUAVObjectDefinition(filePath string) (*UAVObjectDefinition, error) {
 			field.Options = strings.Split(field.OptionsAttr, ",")
 		}
 
-		field.fieldTypeInfo, err = typeInfos.fieldTypeForString(field.Type)
+		field.fieldTypeInfo, err = typeInfos.FieldTypeForString(field.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -181,43 +219,7 @@ func newUAVObjectDefinition(filePath string) (*UAVObjectDefinition, error) {
 
 	sort.Stable(uavObject.Fields)
 
-	uavObject.calculateId()
+	uavObject.calculateID()
 
 	return uavObject, nil
-}
-
-// exported functions
-func getUAVObjectDefinitionForObjectID(objectID uint32) (*UAVObjectDefinition, error) {
-	for _, uavdef := range uavObjectDefinitions {
-		if uavdef.ObjectID == objectID {
-			return uavdef, nil
-		}
-	}
-	return nil, errors.New(fmt.Sprint(objectID, " Not found"))
-}
-
-// TODO: refac
-func isUniqueInstanceForObjectID(objectID uint32) (bool, error) {
-	uavdef, err := getUAVObjectDefinitionForObjectID(objectID)
-	if err != nil {
-		return true, err
-	}
-	return uavdef.SingleInstance, nil
-}
-
-func loadUAVObjectDefinitions(dir string) error {
-	fileInfos, err := ioutil.ReadDir(dir)
-	if err != nil {
-		return err
-	}
-
-	for _, fileInfo := range fileInfos {
-		filePath := fmt.Sprintf("%s%s", dir, fileInfo.Name())
-		uavdef, err := newUAVObjectDefinition(filePath)
-		if err != nil {
-			log.Fatal(err)
-		}
-		uavObjectDefinitions = append(uavObjectDefinitions, uavdef)
-	}
-	return nil
 }

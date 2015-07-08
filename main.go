@@ -6,6 +6,7 @@ import (
 	"os"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/openflylab/bridge/dispatcher"
 )
 
 func main() {
@@ -16,12 +17,7 @@ func main() {
 	port := flag.Int("port", 4224, "port the websocket will listen on")
 	flag.Parse()
 
-	loadUAVObjectDefinitions(flag.Args()[0])
-
-	uavChan := make(chan *UAVTalkObject, 100)
-	jsonChan := make(chan *UAVTalkObject, 100)
-	startUAVTalk(uavChan, jsonChan)
-	startAsServer(uavChan, jsonChan, *port)
+	d := dispatcher.NewDispatcher()
 
 	select {}
 }

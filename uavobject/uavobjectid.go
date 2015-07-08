@@ -1,4 +1,4 @@
-package main
+package uavobject
 
 import (
 	"bytes"
@@ -6,9 +6,10 @@ import (
 	"log"
 
 	"code.google.com/p/go-charset/charset"
-	_ "code.google.com/p/go-charset/data"
+	_ "code.google.com/p/go-charset/data" // can't be in main, could it ? (golint spawns a warning)
 )
 
+// Hash the objectID from the taulabs is just a hash actually
 type Hash uint32
 
 func (hash *Hash) updateHashWithInt(value uint32) {
@@ -45,7 +46,7 @@ func toISO88591(utf8 string) (string, error) {
 	return buf.String(), nil
 }
 
-func (uavdef *UAVObjectDefinition) calculateId() {
+func (uavdef *Definition) calculateID() {
 	hash := new(Hash)
 
 	hash.updateHashWithString(uavdef.Name)
