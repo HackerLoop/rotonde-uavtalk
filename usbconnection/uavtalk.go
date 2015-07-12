@@ -120,6 +120,8 @@ func packetComplete(packet []byte) (bool, int, int) {
 		return false, 0, 0
 	}
 
+	log.Info(offset)
+
 	return true, offset, offset + int(length) + 1
 }
 
@@ -157,8 +159,17 @@ func newPacket(cmd uint8, objectID uint32, instanceID uint16, data []byte) (*Pac
 }
 
 // Start starts the HID driver, and connects it to the dispatcher
-func Start(d *dispatcher.Dispatcher) {
+func Start(d *dispatcher.Dispatcher, definitionsDir string) {
+	defs, err := uavobject.NewDefinitions(definitionsDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+	definitions = defs
+
+	log.Printf("%d xml files loaded\n", len(definitions))
+
 	c := dispatcher.NewConnection()
+	d.AddConnection(c)
 
 	cc, err := hid.Open(0x20a0, 0x41d0, "")
 	if err != nil {
@@ -254,4 +265,6 @@ func Start(d *dispatcher.Dispatcher) {
 			//log.Println("Bytes sent", n)
 		}
 	}()
+
+	select {}
 }

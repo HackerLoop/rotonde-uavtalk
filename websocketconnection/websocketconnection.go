@@ -45,11 +45,13 @@ func Start(d *dispatcher.Dispatcher, port int) {
 
 	go http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 	log.Println(fmt.Sprintf("Websocket server started on port %d", port))
+	select {}
 }
 
 func startConnection(conn *websocket.Conn, d *dispatcher.Dispatcher) {
 	c := dispatcher.NewConnection()
 	d.AddConnection(c)
+	defer c.Close()
 
 	var wg sync.WaitGroup
 	wg.Add(1)

@@ -7,6 +7,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/openflylab/bridge/dispatcher"
+	"github.com/openflylab/bridge/usbconnection"
+	"github.com/openflylab/bridge/websocketconnection"
 )
 
 func main() {
@@ -18,6 +20,12 @@ func main() {
 	flag.Parse()
 
 	d := dispatcher.NewDispatcher()
+
+	go usbconnection.Start(d, os.Args[1])
+
+	go websocketconnection.Start(d, *port)
+
+	go d.Start()
 
 	select {}
 }

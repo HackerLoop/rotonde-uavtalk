@@ -49,10 +49,16 @@ func NewConnection() *Connection {
 	return connection
 }
 
+// Close closes the connection, possible threading issues...
+func (connection *Connection) Close() {
+	close(connection.OutChan)
+}
+
 // Dispatcher main dispatcher class
 type Dispatcher struct {
-	connections []*Connection
-	cases       []reflect.SelectCase
+	connections    []*Connection
+	cases          []reflect.SelectCase
+	connectionChan chan *Connection
 }
 
 // NewDispatcher creates a dispatcher
@@ -60,16 +66,34 @@ func NewDispatcher() *Dispatcher {
 	dispatcher := new(Dispatcher)
 	dispatcher.connections = make([]*Connection, 0, 100)
 	dispatcher.cases = make([]reflect.SelectCase, 0, 100)
+	dispatcher.connectionChan = make(chan *Connection, 10)
 
-	// dispatcher.cases = append(dispatcher.cases, reflect.SelectCase{Dir: reflect.SelectDefault})
+	dispatcher.cases = append(dispatcher.cases, reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(dispatcher.connectionChan)})
 
 	return dispatcher
 }
 
 // AddConnection adds a connection to the dispatcher
 func (dispatcher *Dispatcher) AddConnection(connection *Connection) {
+	dispatcher.connectionChan <- connection
+}
+
+func (dispatcher *Dispatcher) addConnection(connection *Connection) {
+	// the connections slice might have empty spaces, if so, we fill them with new arrivals
 	dispatcher.connections = append(dispatcher.connections, connection)
 	dispatcher.cases = append(dispatcher.cases, reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(connection.OutChan)})
+}
+
+func (dispatcher *Dispatcher) removeConnectionAt(index int) {
+	// if it is not the last element, move all next elements
+	if index < len(dispatcher.connections) {
+		copy(dispatcher.connections[index:], dispatcher.connections[index+1:])
+		copy(dispatcher.cases[index+1:], dispatcher.cases[index+2:])
+	}
+	dispatcher.connections[len(dispatcher.connections)-1] = nil
+	dispatcher.connections = dispatcher.connections[:len(dispatcher.connections)-1]
+
+	dispatcher.cases = dispatcher.cases[:len(dispatcher.cases)-1]
 }
 
 func (dispatcher *Dispatcher) dispatchUpdate(from int, update *Update) {
@@ -93,30 +117,49 @@ func (dispatcher *Dispatcher) dispatchUpdate(from int, update *Update) {
 	}
 }
 
-func (dispatcher *Dispatcher) dispatchRequest(request *Request) {
+func (dispatcher *Dispatcher) dispatchDefinition(from int, definition *uavobject.Definition) {
+	for i, connection := range dispatcher.connections {
+		if i == from {
+			continue
+		}
+		connection.InChan <- *definition
+	}
+}
 
+func (dispatcher *Dispatcher) dispatchRequest(request *Request) {
+	for _, connection := range dispatcher.connections {
+		if _, err := connection.definitions.GetDefinitionForObjectID(request.ObjectID); err != nil {
+			connection.InChan <- *request
+			return
+		}
+	}
 }
 
 func (dispatcher *Dispatcher) processChannels() {
 	chosen, value, ok := reflect.Select(dispatcher.cases)
 	if !ok {
 		log.Warning("One of the channels is broken.", chosen)
-		// TODO remove Connection + Select Case
+		dispatcher.removeConnectionAt(chosen - 1)
 	} else {
-		connection := dispatcher.connections[chosen]
 		switch data := value.Interface().(type) {
 		case Update:
-			dispatcher.dispatchUpdate(chosen, &data)
+			log.Info("Dispatching Update message")
+			dispatcher.dispatchUpdate(chosen-1, &data)
 		case Command:
+			log.Info("Executing command")
+			connection := dispatcher.connections[chosen-1]
 			data.Execute(connection, dispatcher)
 		case uavobject.Definition:
+			log.Info("Dispatching Definition message")
+			connection := dispatcher.connections[chosen-1]
 			connection.definitions = append(connection.definitions, &data)
-			for i, connection := range dispatcher.connections {
-				if i == chosen {
-					continue
-				}
-				connection.InChan <- data
-			}
+			dispatcher.dispatchDefinition(chosen-1, &data)
+		case Request:
+			log.Info("Dispatching Request message")
+			dispatcher.dispatchRequest(&data)
+		case *Connection:
+			log.Info("Add connection")
+			dispatcher.addConnection(data)
 		default:
 			log.Warning("Oops got some unknown object in the dispatcher, ignoring.")
 		}
@@ -125,9 +168,7 @@ func (dispatcher *Dispatcher) processChannels() {
 
 // Start starts the dispatcher
 func (dispatcher *Dispatcher) Start() {
-	go (func() {
-		for {
-			dispatcher.processChannels()
-		}
-	})()
+	for {
+		dispatcher.processChannels()
+	}
 }

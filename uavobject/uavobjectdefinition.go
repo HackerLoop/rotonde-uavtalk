@@ -41,7 +41,7 @@ func NewDefinitions(dir string) (Definitions, error) {
 		return nil, err
 	}
 
-	definitions := make([]*Definition, 10)
+	definitions := make([]*Definition, 0, 150)
 	for _, fileInfo := range fileInfos {
 		filePath := fmt.Sprintf("%s%s", dir, fileInfo.Name())
 		definition, err := NewDefinition(filePath)
