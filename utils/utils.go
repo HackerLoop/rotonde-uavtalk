@@ -2,7 +2,8 @@ package utils
 
 import "fmt"
 
-func printHex(buffer []byte, n int) {
+// PrintHex prints the content of the buffer as hex
+func PrintHex(buffer []byte, n int) {
 	fmt.Println("start packet:")
 	for i := 0; i < n; i++ {
 		if i > 0 {

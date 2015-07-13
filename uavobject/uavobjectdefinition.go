@@ -25,6 +25,16 @@ func (definitions Definitions) GetDefinitionForObjectID(objectID uint32) (*Defin
 	return nil, errors.New(fmt.Sprint(objectID, " Not found"))
 }
 
+// GetDefinitionForName _
+func (definitions Definitions) GetDefinitionForName(name string) (*Definition, error) {
+	for _, definition := range definitions {
+		if definition.Name == name {
+			return definition, nil
+		}
+	}
+	return nil, errors.New(fmt.Sprint(name, " Not found"))
+}
+
 // IsUniqueInstanceForObjectID an UAVObject is said unique when its number of instances is == 0 (which means, it is not an array)
 func (definitions Definitions) IsUniqueInstanceForObjectID(objectID uint32) (bool, error) {
 	definition, err := definitions.GetDefinitionForObjectID(objectID)

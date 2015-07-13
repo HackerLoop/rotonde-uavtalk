@@ -93,7 +93,7 @@ The "update" type represents an update of a UAVObject, they can occure in two ci
     "objectId": 1234, // displayed on start of bridge
     "instanceId": 0, // see UAVTalk documentation for info
     "data": {
-      // UAVObject data, see xml definitions for reference
+      // UAVObject data, as described by the definitions
     }
   }
 }

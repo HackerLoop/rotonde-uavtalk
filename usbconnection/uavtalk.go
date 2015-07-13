@@ -256,14 +256,14 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 					continue
 				}
 				binaryObj = append([]byte{0x01, byte(len(binaryObj))}, binaryObj...)
-				//printHex(binaryObj, len(binaryObj))
+				//utils.PrintHex(binaryObj, len(binaryObj))
 
 				_, err = cc.Write(binaryObj)
 				if err != nil {
 					log.Fatal(err)
 				}
+				//log.Println("Bytes sent", n)
 			}
-			//log.Println("Bytes sent", n)
 		}
 	}()
 

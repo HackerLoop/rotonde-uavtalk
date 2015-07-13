@@ -140,7 +140,7 @@ func (dispatcher *Dispatcher) processChannels() {
 	} else {
 		switch data := value.Interface().(type) {
 		case Update:
-			log.Info("Dispatching Update message")
+			//log.Info("Dispatching Update message")
 			dispatcher.dispatchUpdate(chosen-1, &data)
 		case Subscription:
 			log.Info("Executing subscribe")
