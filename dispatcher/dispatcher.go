@@ -8,7 +8,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-const chanQueueLength = 100
+// ChanQueueLength buffered channl length
+const ChanQueueLength = 100
 
 // Object native representation of a UAVPacket, just a map
 type Object map[string]interface{}
@@ -26,25 +27,24 @@ type Request struct {
 	InstanceID uint16 `json:"instanceId"`
 }
 
-// Command : Dispatcher command
-type Command interface {
-	Execute(connection *Connection, dispatcher *Dispatcher) bool
+// Subscription adds an objectID to the subscriptions of the sending connection
+type Subscription struct {
+	ObjectID uint32 `json:"objectId"`
 }
 
 // Connection : basic interface representing a connection to the dispatcher
 type Connection struct {
-	definitions uavobject.Definitions
-	inFilters   []Filter
-	outFilters  []Filter
-	InChan      chan interface{}
-	OutChan     chan interface{}
+	definitions   uavobject.Definitions
+	subscriptions []uint32
+	InChan        chan interface{}
+	OutChan       chan interface{}
 }
 
 // NewConnection creates a new dispatcher connection
 func NewConnection() *Connection {
 	connection := new(Connection)
-	connection.InChan = make(chan interface{}, chanQueueLength)
-	connection.OutChan = make(chan interface{}, chanQueueLength)
+	connection.InChan = make(chan interface{}, ChanQueueLength)
+	connection.OutChan = make(chan interface{}, ChanQueueLength)
 
 	return connection
 }
@@ -57,8 +57,8 @@ func (connection *Connection) Close() {
 // Dispatcher main dispatcher class
 type Dispatcher struct {
 	connections    []*Connection
-	cases          []reflect.SelectCase
-	connectionChan chan *Connection
+	cases          []reflect.SelectCase // cases for the select case of the main loop, the first element il for the connectionChan, the others are for the outChans of the connections
+	connectionChan chan *Connection     // connectionChan receives the new connections to add
 }
 
 // NewDispatcher creates a dispatcher
@@ -68,6 +68,7 @@ func NewDispatcher() *Dispatcher {
 	dispatcher.cases = make([]reflect.SelectCase, 0, 100)
 	dispatcher.connectionChan = make(chan *Connection, 10)
 
+	// first case is for the connectionChan
 	dispatcher.cases = append(dispatcher.cases, reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(dispatcher.connectionChan)})
 
 	return dispatcher
@@ -79,7 +80,6 @@ func (dispatcher *Dispatcher) AddConnection(connection *Connection) {
 }
 
 func (dispatcher *Dispatcher) addConnection(connection *Connection) {
-	// the connections slice might have empty spaces, if so, we fill them with new arrivals
 	dispatcher.connections = append(dispatcher.connections, connection)
 	dispatcher.cases = append(dispatcher.cases, reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(connection.OutChan)})
 }
@@ -97,21 +97,18 @@ func (dispatcher *Dispatcher) removeConnectionAt(index int) {
 }
 
 func (dispatcher *Dispatcher) dispatchUpdate(from int, update *Update) {
-	talkingConnection := dispatcher.connections[from]
-	for _, filter := range talkingConnection.outFilters {
-		if filter.PassThrough(*update) == false {
-			return
-		}
-	}
-
 	for i, connection := range dispatcher.connections {
 		if i == from {
 			continue
 		}
-		for _, filter := range connection.inFilters {
-			if filter.PassThrough(*update) == false {
-				return
+		subscribed := false
+		for _, objectID := range connection.subscriptions {
+			if objectID == update.ObjectID {
+				subscribed = true
 			}
+		}
+		if subscribed == false {
+			continue
 		}
 		connection.InChan <- *update
 	}
@@ -145,10 +142,10 @@ func (dispatcher *Dispatcher) processChannels() {
 		case Update:
 			log.Info("Dispatching Update message")
 			dispatcher.dispatchUpdate(chosen-1, &data)
-		case Command:
-			log.Info("Executing command")
+		case Subscription:
+			log.Info("Executing subscribe")
 			connection := dispatcher.connections[chosen-1]
-			data.Execute(connection, dispatcher)
+			connection.subscriptions = append(connection.subscriptions, data.ObjectID)
 		case uavobject.Definition:
 			log.Info("Dispatching Definition message")
 			connection := dispatcher.connections[chosen-1]
@@ -159,7 +156,7 @@ func (dispatcher *Dispatcher) processChannels() {
 			dispatcher.dispatchRequest(&data)
 		case *Connection:
 			log.Info("Add connection")
-			dispatcher.addConnection(data)
+			dispatcher.addConnection(data) // data is already a pointer
 		default:
 			log.Warning("Oops got some unknown object in the dispatcher, ignoring.")
 		}

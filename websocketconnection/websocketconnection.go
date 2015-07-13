@@ -17,8 +17,8 @@ import (
 // More infos at https://wiki.openpilot.org/display/WIKI/UAVTalk
 // Warning: the link above might not be totally true in Taulabs, better read the code than the doc.
 type Packet struct {
-	Type string      `json:"type"`
-	Data interface{} `json:"data"`
+	Type    string      `json:"type"`
+	Payload interface{} `json:"payload"`
 }
 
 // Start the websocket server, each peer connecting to this websocket will be added as connection to the dispatcher
@@ -65,11 +65,11 @@ func startConnection(conn *websocket.Conn, d *dispatcher.Dispatcher) {
 		for dispatcherPacket := range c.InChan {
 			switch data := dispatcherPacket.(type) {
 			case dispatcher.Update:
-				packet = Packet{Type: "update", Data: data}
+				packet = Packet{Type: "update", Payload: data}
 			case dispatcher.Request:
-				packet = Packet{Type: "req", Data: data}
+				packet = Packet{Type: "req", Payload: data}
 			case uavobject.Definition:
-				packet = Packet{Type: "def", Data: data}
+				packet = Packet{Type: "def", Payload: data}
 			}
 
 			jsonPacket, err = json.Marshal(packet)
@@ -109,17 +109,19 @@ func startConnection(conn *websocket.Conn, d *dispatcher.Dispatcher) {
 				switch packet.Type {
 				case "update":
 					update := dispatcher.Update{}
-					mapstructure.Decode(packet.Data, &update)
+					mapstructure.Decode(packet.Payload, &update)
 					dispatcherPacket = update
 				case "req":
 					request := dispatcher.Request{}
-					mapstructure.Decode(packet.Data, &request)
+					mapstructure.Decode(packet.Payload, &request)
 					dispatcherPacket = request
-				case "cmd":
-					// TODO available websocket command: filter
+				case "sub":
+					subscription := dispatcher.Subscription{}
+					mapstructure.Decode(packet.Payload, &subscription)
+					dispatcherPacket = subscription
 				case "def":
 					definition := uavobject.Definition{}
-					mapstructure.Decode(packet.Data, &definition)
+					mapstructure.Decode(packet.Payload, &definition)
 					dispatcherPacket = definition
 				}
 				// TODO log

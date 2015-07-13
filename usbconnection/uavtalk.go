@@ -120,8 +120,6 @@ func packetComplete(packet []byte) (bool, int, int) {
 		return false, 0, 0
 	}
 
-	log.Info(offset)
-
 	return true, offset, offset + int(length) + 1
 }
 
@@ -166,10 +164,13 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 	}
 	definitions = defs
 
-	log.Printf("%d xml files loaded\n", len(definitions))
+	log.Info("%d xml files loaded\n", len(definitions))
+	for _, definition := range definitions {
+		log.Infof("Name: %s ObjectID: %d", definition.Name, definition.ObjectID)
+	}
 
-	c := dispatcher.NewConnection()
-	d.AddConnection(c)
+	sw := newSessionWrapper()
+	d.AddConnection(sw.connection)
 
 	cc, err := hid.Open(0x20a0, 0x41d0, "")
 	if err != nil {
@@ -211,7 +212,7 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 					}
 
 					update := dispatcher.Update{uavTalkObject.objectID, uavTalkObject.instanceID, data}
-					c.OutChan <- update
+					sw.outChan <- update
 				} else {
 					log.Println(err)
 				}
@@ -224,7 +225,7 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 	// From dispatcher
 	go func() {
 		for {
-			dispatcherMsg := <-c.InChan
+			dispatcherMsg := <-sw.inChan
 			switch dispatcherPacket := dispatcherMsg.(type) {
 			case dispatcher.Update:
 				definition, err := definitions.GetDefinitionForObjectID(dispatcherPacket.ObjectID)

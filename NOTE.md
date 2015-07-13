@@ -9,7 +9,7 @@
 
 {
   "type": "update", // ou "req" ou "cmd" ou "def"
-  "payload": {
+  "data": {
     "Kpi": 0
     [......]
   }
