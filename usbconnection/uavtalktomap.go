@@ -6,7 +6,6 @@ import (
 	"errors"
 
 	"github.com/openflylab/bridge/uavobject"
-	//"log"
 )
 
 func readFromUAVTalk(field *uavobject.FieldDefinition, reader *bytes.Reader) (interface{}, error) {
@@ -40,25 +39,6 @@ func readFromUAVTalk(field *uavobject.FieldDefinition, reader *bytes.Reader) (in
 	if typeInfo.Name == "enum" {
 		result = field.Options[uint8(*(result.(*uint8)))] // haha
 	}
-
-	/*switch typeInfo.name {
-	case "int8":
-		log.Println(field.Name, *result.(*int8))
-	case "int16":
-		log.Println(field.Name, *result.(*int16))
-	case "int32":
-		log.Println(field.Name, *result.(*int32))
-	case "uint8":
-		log.Println(field.Name, *result.(*uint8))
-	case "uint16":
-		log.Println(field.Name, *result.(*uint16))
-	case "uint32":
-		log.Println(field.Name, *result.(*uint32))
-	case "float":
-		log.Println(field.Name, *result.(*float32))
-	case "enum":
-		log.Println(field.Name, result.(string))
-	}*/
 	return result, nil
 }
 
@@ -97,6 +77,7 @@ func uAVTalkToInterface(field *uavobject.FieldDefinition, reader *bytes.Reader) 
 func uAVTalkToMap(uavdef *uavobject.Definition, data []byte) (map[string]interface{}, error) {
 	reader := bytes.NewReader(data)
 	result := make(map[string]interface{})
+
 	for _, field := range uavdef.Fields {
 		value, err := uAVTalkToInterface(field, reader)
 		if err != nil {

@@ -97,6 +97,15 @@ func (t TypeIndex) FieldTypeForString(ts string) (*FieldTypeInfo, error) {
 // FieldsSlice sortable slice of fields
 type FieldsSlice []*FieldDefinition
 
+// ByteLength returns the size in bytes of all the fields
+func (fields FieldsSlice) ByteLength() int {
+	length := 0
+	for _, field := range fields {
+		length += field.FieldTypeInfo.Size
+	}
+	return length
+}
+
 func (fields FieldsSlice) fieldForName(name string) (*FieldDefinition, error) {
 	for _, field := range fields {
 		if field.Name == name {
