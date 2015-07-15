@@ -14,7 +14,7 @@ import (
 
 var definitions uavobject.Definitions
 
-// TODO: refactor for better value reading (encoding/binary)
+// TODO: refactor for better value reading (encoding/binary ?)
 // See uavtalk.cpp state machine pattern in GCS
 
 const versionMask = 0x20

@@ -8,6 +8,13 @@ import (
 	"github.com/openflylab/bridge/uavobject"
 )
 
+/*
+ * This is where we manage the whole usb layer.
+ * States are used to manage handshake and session management.
+ * See https://github.com/TauLabs/TauLabs/wiki/UAVTalk-session-management
+ * and https://wiki.openpilot.org/display/WIKI/UAVTalk
+**/
+
 type stateHolder struct {
 	connection *dispatcher.Connection
 	inChan     chan Packet
