@@ -47,9 +47,6 @@ func (s *notConnected) start() {
 		log.Fatal(err)
 	}
 
-	handshakeReq := createGCSTelemetryStatsObjectPacket("HandshakeReq")
-	s.stateHolder.inChan <- handshakeReq
-
 	log.Info("Started notConnected state")
 }
 
@@ -60,7 +57,10 @@ func (s *notConnected) in(p Packet) bool {
 func (s *notConnected) out(p Packet) bool {
 	if p.definition == s.flightTelemetryStats {
 		log.Info(p.data["Status"])
-		if p.data["Status"] == "HandshakeAck" {
+		if p.data["Status"] == "Disconnected" {
+			handshakeReq := createGCSTelemetryStatsObjectPacket("HandshakeReq")
+			s.stateHolder.inChan <- handshakeReq
+		} else if p.data["Status"] == "HandshakeAck" {
 			handshakeConnected := createGCSTelemetryStatsObjectPacket("Connected")
 			s.stateHolder.inChan <- handshakeConnected
 		} else if p.data["Status"] == "Connected" {

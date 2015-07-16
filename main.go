@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	runtime.GOMAXPROCS(1) //runtime.NumCPU())
 
 	if len(os.Args) < 2 {
 		log.Fatal(fmt.Sprintf("Usage: %s uavobject_directory/", os.Args[0]))

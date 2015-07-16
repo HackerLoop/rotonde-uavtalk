@@ -127,7 +127,7 @@ func packetComplete(packet []byte) (bool, int, int, error) {
 
 func newPacketFromBinary(binaryPacket []byte) (*Packet, error) {
 	headerSize := shortHeaderLength
-	packet := &Packet{}
+	packet := Packet{}
 
 	packet.cmd = binaryPacket[1] ^ versionMask
 	packet.length = byteArrayToInt16(binaryPacket[2:4])
@@ -154,11 +154,11 @@ func newPacketFromBinary(binaryPacket []byte) (*Packet, error) {
 		packet.data = map[string]interface{}{}
 	}
 
-	return packet, nil
+	return &packet, nil
 }
 
 func newPacket(definition *uavobject.Definition, cmd uint8, instanceID uint16, data map[string]interface{}) *Packet {
-	packet := new(Packet)
+	packet := Packet{}
 	packet.definition = definition
 	packet.cmd = cmd
 	packet.instanceID = instanceID
@@ -174,7 +174,7 @@ func newPacket(definition *uavobject.Definition, cmd uint8, instanceID uint16, d
 		packet.length = uint16(shortHeaderLength + fieldsLength)
 	}
 	packet.data = data
-	return packet
+	return &packet
 }
 
 // Start starts the HID driver
@@ -210,15 +210,20 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 		buffer := make([]byte, maxHIDFrameSize)
 		packet := make([]byte, 0, 4096)
 		for {
-			_, err := cc.Read(buffer)
+			n, err := cc.ReadTimeout(buffer, 50)
 			if err != nil {
 				log.Fatal(err)
+			}
+			if n == 0 {
+				continue
 			}
 			//log.Info("received:")
 			//utils.PrintHex(buffer, int(2+buffer[1]))
 
 			packet = append(packet, buffer[2:2+buffer[1]]...)
 			//log.Info(len(packet))
+			//log.Info("packet:")
+			//utils.PrintHex(packet, len(packet))
 
 			for {
 				ok, from, to, err := packetComplete(packet)
@@ -255,16 +260,16 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 				continue
 			}
 
-			log.Info("sending")
-			utils.PrintHex(binaryPacket, len(binaryPacket))
+			//log.Info("sending")
+			//utils.PrintHex(binaryPacket, len(binaryPacket))
 
 			currentOffset := 0
 			for currentOffset < len(binaryPacket) {
-				toWrite := len(binaryPacket) - currentOffset
-				if toWrite > maxHIDFrameSize-2 {
-					toWrite = maxHIDFrameSize - 2
+				toWriteLength := len(binaryPacket) - currentOffset
+				if toWriteLength > maxHIDFrameSize-2 {
+					toWriteLength = maxHIDFrameSize - 2
 				}
-				toWriteBuffer := append([]byte{0x02, byte(toWrite)}, binaryPacket[currentOffset:currentOffset+toWrite]...)
+				toWriteBuffer := append([]byte{0x02, byte(toWriteLength)}, binaryPacket[currentOffset:currentOffset+toWriteLength]...)
 				n, err := cc.Write(toWriteBuffer)
 				if err != nil {
 					log.Fatal(err)
