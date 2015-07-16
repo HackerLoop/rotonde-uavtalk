@@ -251,6 +251,7 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 
 	// To USB
 	go func() {
+		fixedLengthWriteBuffer := make([]byte, maxHIDFrameSize)
 		for {
 			packet := <-sh.inChan
 
@@ -269,12 +270,14 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 				if toWriteLength > maxHIDFrameSize-2 {
 					toWriteLength = maxHIDFrameSize - 2
 				}
-				toWriteBuffer := append([]byte{0x02, byte(toWriteLength)}, binaryPacket[currentOffset:currentOffset+toWriteLength]...)
-				n, err := cc.Write(toWriteBuffer)
+				copy(fixedLengthWriteBuffer, append([]byte{0x02, byte(toWriteLength)}, binaryPacket[currentOffset:currentOffset+toWriteLength]...))
+				log.Info("sending")
+				utils.PrintHex(fixedLengthWriteBuffer, len(fixedLengthWriteBuffer))
+				_, err := cc.Write(fixedLengthWriteBuffer)
 				if err != nil {
 					log.Fatal(err)
 				}
-				currentOffset += n
+				currentOffset += toWriteLength
 			}
 		}
 	}()
