@@ -5,8 +5,6 @@ import (
 	"net"
 
 	"github.com/GeertJohan/go.hid"
-	log "github.com/Sirupsen/logrus"
-	"github.com/openflylab/bridge/utils"
 )
 
 type linker interface {
@@ -38,11 +36,11 @@ func (l usbLink) Write(b []byte) (int, error) {
 		if toWriteLength > maxHIDFrameSize-2 {
 			toWriteLength = maxHIDFrameSize - 2
 		}
+
 		l.fixedLengthWriteBuffer[0] = 0x02
 		l.fixedLengthWriteBuffer[1] = byte(toWriteLength)
 		copy(l.fixedLengthWriteBuffer[2:], b[currentOffset:currentOffset+toWriteLength])
-		log.Info("sending")
-		utils.PrintHex(l.fixedLengthWriteBuffer, len(l.fixedLengthWriteBuffer))
+
 		n, err := l.cc.Write(l.fixedLengthWriteBuffer)
 		if err != nil {
 			return currentOffset, err
@@ -60,8 +58,10 @@ func (l usbLink) Read(b []byte) (int, error) {
 	if n == 0 {
 		return 0, nil
 	}
-	b = b[2 : 2+b[1]]
-	return len(b), nil
+	s := int(b[1])
+	copy(b, b[2:])
+
+	return s, nil
 }
 
 func (l usbLink) Close() error {

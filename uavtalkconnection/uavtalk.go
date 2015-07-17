@@ -123,33 +123,33 @@ type Packet struct {
 	data       map[string]interface{}
 }
 
-func (packet *Packet) toBinary() ([]byte, error) {
+func (buffer *Packet) toBinary() ([]byte, error) {
 	writer := new(bytes.Buffer)
 
 	if err := binary.Write(writer, binary.LittleEndian, uint8(0x3c)); err != nil {
 		return nil, err
 	}
 
-	if err := binary.Write(writer, binary.LittleEndian, packet.cmd|versionMask); err != nil {
+	if err := binary.Write(writer, binary.LittleEndian, buffer.cmd|versionMask); err != nil {
 		return nil, err
 	}
 
-	if err := binary.Write(writer, binary.LittleEndian, packet.length); err != nil {
+	if err := binary.Write(writer, binary.LittleEndian, buffer.length); err != nil {
 		return nil, err
 	}
 
-	if err := binary.Write(writer, binary.LittleEndian, packet.definition.ObjectID); err != nil {
+	if err := binary.Write(writer, binary.LittleEndian, buffer.definition.ObjectID); err != nil {
 		return nil, err
 	}
 
-	if packet.definition.SingleInstance == false {
-		if err := binary.Write(writer, binary.LittleEndian, packet.instanceID); err != nil {
+	if buffer.definition.SingleInstance == false {
+		if err := binary.Write(writer, binary.LittleEndian, buffer.instanceID); err != nil {
 			return nil, err
 		}
 	}
 
-	if packet.cmd == objectCmd || packet.cmd == objectCmdWithAck {
-		data, err := mapToUAVTalk(packet.definition, packet.data)
+	if buffer.cmd == objectCmd || buffer.cmd == objectCmdWithAck {
+		data, err := mapToUAVTalk(buffer.definition, buffer.data)
 		if err != nil {
 			return nil, err
 		}
@@ -183,10 +183,10 @@ func byteArrayToInt16(b []byte) uint16 {
 	return (uint16(b[1]) << 8) | (uint16(b[0]))
 }
 
-func packetComplete(packet []byte) (bool, int, int, error) {
+func bufferComplete(buffer []byte) (bool, int, int, error) {
 	offset := -1
-	for i := 0; i < len(packet); i++ {
-		if packet[i] == 0x3c {
+	for i := 0; i < len(buffer); i++ {
+		if buffer[i] == 0x3c {
 			offset = i
 			break
 		}
@@ -196,15 +196,15 @@ func packetComplete(packet []byte) (bool, int, int, error) {
 		return false, 0, 0, nil
 	}
 
-	length := byteArrayToInt16(packet[offset+2 : offset+4])
+	length := byteArrayToInt16(buffer[offset+2 : offset+4])
 
-	if int(length)+1 > len(packet)-offset {
+	if int(length)+1 > len(buffer)-offset {
 		return false, 0, 0, nil
 	}
 
-	cks := packet[offset+int(length)]
+	cks := buffer[offset+int(length)]
 
-	if cks != computeCrc8(0, packet[offset:offset+int(length)]) {
+	if cks != computeCrc8(0, buffer[offset:offset+int(length)]) {
 		return false, offset, offset + int(length) + 1, fmt.Errorf("Wrong crc8 !!!!")
 	}
 
@@ -213,54 +213,54 @@ func packetComplete(packet []byte) (bool, int, int, error) {
 
 func newPacketFromBinary(binaryPacket []byte) (*Packet, error) {
 	headerSize := shortHeaderLength
-	packet := Packet{}
+	buffer := Packet{}
 
-	packet.cmd = binaryPacket[1] ^ versionMask
-	packet.length = byteArrayToInt16(binaryPacket[2:4])
+	buffer.cmd = binaryPacket[1] ^ versionMask
+	buffer.length = byteArrayToInt16(binaryPacket[2:4])
 	objectID := byteArrayToInt32(binaryPacket[4:8])
 
 	var err error
-	packet.definition, err = definitions.GetDefinitionForObjectID(objectID)
+	buffer.definition, err = definitions.GetDefinitionForObjectID(objectID)
 	if err != nil {
 		return nil, err
 	}
-	if packet.definition.SingleInstance == false {
-		packet.instanceID = byteArrayToInt16(binaryPacket[8:10])
+	if buffer.definition.SingleInstance == false {
+		buffer.instanceID = byteArrayToInt16(binaryPacket[8:10])
 		headerSize += 2
 	}
 
 	binaryData := binaryPacket[headerSize : len(binaryPacket)-1]
 
-	if packet.cmd == objectCmd || packet.cmd == objectCmdWithAck {
-		packet.data, err = uAVTalkToMap(packet.definition, binaryData)
+	if buffer.cmd == objectCmd || buffer.cmd == objectCmdWithAck {
+		buffer.data, err = uAVTalkToMap(buffer.definition, binaryData)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		packet.data = map[string]interface{}{}
+		buffer.data = map[string]interface{}{}
 	}
 
-	return &packet, nil
+	return &buffer, nil
 }
 
 func newPacket(definition *common.Definition, cmd uint8, instanceID uint16, data map[string]interface{}) *Packet {
-	packet := Packet{}
-	packet.definition = definition
-	packet.cmd = cmd
-	packet.instanceID = instanceID
+	buffer := Packet{}
+	buffer.definition = definition
+	buffer.cmd = cmd
+	buffer.instanceID = instanceID
 
 	var fieldsLength int
 	if cmd == objectCmd || cmd == objectCmdWithAck {
 		fieldsLength = definition.Fields.ByteLength()
 	}
 
-	if packet.definition.SingleInstance == false {
-		packet.length = uint16(shortHeaderLength + fieldsLength + 2)
+	if buffer.definition.SingleInstance == false {
+		buffer.length = uint16(shortHeaderLength + fieldsLength + 2)
 	} else {
-		packet.length = uint16(shortHeaderLength + fieldsLength)
+		buffer.length = uint16(shortHeaderLength + fieldsLength)
 	}
-	packet.data = data
-	return &packet
+	buffer.data = data
+	return &buffer
 }
 
 // Start starts the HID driver
@@ -284,18 +284,12 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 	}
 	defer link.Close()
 
-	/*c := &serial.Config{Name: "/dev/cu.usbmodem1421", Baud: 57600}
-	cc, err := serial.OpenPort(c)
-	if err != nil {
-		log.Fatal(err)
-	}*/
-
 	// From USB
 	go func() {
-		buffer := make([]byte, maxHIDFrameSize)
-		packet := make([]byte, 0, 4096)
+		packet := make([]byte, maxHIDFrameSize)
+		buffer := make([]byte, 0, 4096)
 		for {
-			n, err := link.Read(buffer)
+			n, err := link.Read(packet)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -303,33 +297,35 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 				continue
 			}
 			//log.Info("received:")
-			//utils.PrintHex(buffer, int(2+buffer[1]))
+			//utils.PrintHex(packet, len(packet[0:n]))
 
-			packet = append(packet, buffer...)
-			//log.Info(len(packet))
-			//log.Info("packet:")
-			//utils.PrintHex(packet, len(packet))
+			buffer = append(buffer, packet[0:n]...)
+			//log.Info(len(buffer))
+			//log.Info("buffer:")
+			//utils.PrintHex(buffer, len(buffer))
 
 			for {
-				ok, from, to, err := packetComplete(packet)
+				ok, from, to, err := bufferComplete(buffer)
 				if err == nil {
 					if ok != true {
 						break
 					}
-					//log.Info("packet complete:")
-					//utils.PrintHex(packet[from:to], to-from)
+					//log.Info("buffer complete:")
+					//utils.PrintHex(buffer[from:to], to-from)
 
-					if uavTalkObject, err := newPacketFromBinary(packet[from:to]); err == nil {
+					if uavTalkObject, err := newPacketFromBinary(buffer[from:to]); err == nil {
 						sh.outChan <- *uavTalkObject
 					} else {
 						log.Warning(err)
 					}
 				} else {
 					log.Warning(err)
-					utils.PrintHex(packet[from:to], to-from)
+					utils.PrintHex(buffer[from:to], to-from)
 				}
-				copy(packet, packet[to:]) // baaaaah !! ring buffer to the rescue ?
-				packet = packet[0 : len(packet)-to]
+				copy(buffer, buffer[to:]) // baaaaah !! ring packet to the rescue ?
+				buffer = buffer[0 : len(buffer)-to]
+				//log.Info("buffer:")
+				//utils.PrintHex(buffer, len(buffer))
 			}
 		}
 	}()
@@ -337,9 +333,9 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 	// To Controller
 	go func() {
 		for {
-			packet := <-sh.inChan
+			buffer := <-sh.inChan
 
-			binaryPacket, err := packet.toBinary()
+			binaryPacket, err := buffer.toBinary()
 			if err != nil {
 				log.Println(err)
 				continue
