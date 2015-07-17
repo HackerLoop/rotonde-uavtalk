@@ -79,6 +79,12 @@ func (dispatcher *Dispatcher) AddConnection(connection *Connection) {
 }
 
 func (dispatcher *Dispatcher) addConnection(connection *Connection) {
+	for _, c := range dispatcher.connections {
+		for _, d := range c.definitions {
+			connection.InChan <- *d
+		}
+	}
+
 	dispatcher.connections = append(dispatcher.connections, connection)
 	dispatcher.cases = append(dispatcher.cases, reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(connection.OutChan)})
 }
@@ -139,7 +145,6 @@ func (dispatcher *Dispatcher) processChannels() {
 	} else {
 		switch data := value.Interface().(type) {
 		case Update:
-			//log.Info("Dispatching Update message")
 			dispatcher.dispatchUpdate(chosen-1, &data)
 		case Subscription:
 			log.Info("Executing subscribe")

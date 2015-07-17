@@ -109,15 +109,22 @@ func (s *noSession) in(p Packet) bool {
 func (s *noSession) out(p Packet) bool {
 	if p.definition == s.sessionManaging {
 		if p.cmd == objectCmd || p.cmd == objectCmdWithAck {
-			log.Infof("%d %d %d %d %d", *(p.data["SessionID"].(*uint16)), *(p.data["ObjectID"].(*uint32)), *(p.data["ObjectInstances"].(*uint8)), *(p.data["NumberOfObjects"].(*uint8)), *(p.data["ObjectOfInterestIndex"].(*uint8)))
+			//log.Infof("%d %d %d %d %d", *(p.data["SessionID"].(*uint16)), *(p.data["ObjectID"].(*uint32)), *(p.data["ObjectInstances"].(*uint8)), *(p.data["NumberOfObjects"].(*uint8)), *(p.data["ObjectOfInterestIndex"].(*uint8)))
 			numberOfObjects := *(p.data["NumberOfObjects"].(*uint8))
 			if numberOfObjects != 0 {
 				s.numberOfObjects = numberOfObjects
 			}
 			if p.cmd == objectCmdWithAck {
-				log.Info("objectCmdWithAck")
 				sessionManagingPacketAck := createSessionManagingPacketAck()
 				s.stateHolder.inChan <- sessionManagingPacketAck
+
+				objectID := *(p.data["ObjectID"].(*uint32))
+				definition, err := definitions.GetDefinitionForObjectID(objectID)
+				if err != nil {
+					log.Warning(err)
+				} else {
+					s.stateHolder.connection.OutChan <- *definition
+				}
 
 				if s.currentObjectID >= s.numberOfObjects {
 					s.stateHolder.setState(&stream{})
@@ -155,7 +162,7 @@ func (s *stream) in(p Packet) bool {
 }
 
 func (s *stream) out(p Packet) bool {
-	log.Info(p)
+	//log.Info(p)
 	return true
 }
 
@@ -273,7 +280,7 @@ func newPacketFromDispatcher(dispatcherPacket interface{}) (*Packet, error) {
 
 func newDispatherPacketFromPacket(packet Packet) (interface{}, error) {
 	if packet.cmd == objectCmd || packet.cmd == objectCmdWithAck {
-		return dispatcher.Update{ObjectID: packet.definition.ObjectID, InstanceID: packet.instanceID}, nil
+		return dispatcher.Update{ObjectID: packet.definition.ObjectID, InstanceID: packet.instanceID, Data: packet.data}, nil
 	}
 	return nil, fmt.Errorf("Only packets with cmd == 0 or cmd == 2 can go out of the flight controller")
 }

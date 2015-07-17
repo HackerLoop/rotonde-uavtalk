@@ -70,6 +70,8 @@ func startConnection(conn *websocket.Conn, d *dispatcher.Dispatcher) {
 				packet = Packet{Type: "req", Payload: data}
 			case common.Definition:
 				packet = Packet{Type: "def", Payload: data}
+			default:
+				log.Info("Oops unknown packet: ", packet)
 			}
 
 			jsonPacket, err = json.Marshal(packet)
