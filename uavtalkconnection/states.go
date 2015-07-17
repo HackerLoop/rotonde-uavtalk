@@ -112,21 +112,22 @@ func (s *noSession) out(p Packet) bool {
 			log.Infof("%d %d %d %d %d", *(p.data["SessionID"].(*uint16)), *(p.data["ObjectID"].(*uint32)), *(p.data["ObjectInstances"].(*uint8)), *(p.data["NumberOfObjects"].(*uint8)), *(p.data["ObjectOfInterestIndex"].(*uint8)))
 			numberOfObjects := *(p.data["NumberOfObjects"].(*uint8))
 			if numberOfObjects != 0 {
-				s.numberOfObjects = numberOfObjects - 1
+				s.numberOfObjects = numberOfObjects
 			}
 			if p.cmd == objectCmdWithAck {
 				log.Info("objectCmdWithAck")
 				sessionManagingPacketAck := createSessionManagingPacketAck()
 				s.stateHolder.inChan <- sessionManagingPacketAck
 
+				if s.currentObjectID >= s.numberOfObjects {
+					s.stateHolder.setState(&stream{})
+					return false
+				}
+
 				sessionManagingPacket := createSessionManagingPacket(4224, s.currentObjectID)
 				s.currentObjectID++
 				s.currentSessionStateCreationStep = noSessionStateFetchObjects
 				s.stateHolder.inChan <- sessionManagingPacket
-
-				if s.currentObjectID > s.numberOfObjects {
-					s.stateHolder.setState(&stream{})
-				}
 			} else {
 				sessionManagingPacket := createSessionManagingPacket(0, 0)
 				s.stateHolder.inChan <- sessionManagingPacket
