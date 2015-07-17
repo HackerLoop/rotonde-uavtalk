@@ -48,6 +48,9 @@ func (s *notConnected) start() {
 	}
 
 	log.Info("Started notConnected state")
+
+	handshakeReq := createGCSTelemetryStatsObjectPacket("HandshakeReq")
+	s.stateHolder.inChan <- handshakeReq
 }
 
 func (s *notConnected) in(p Packet) bool {
@@ -72,18 +75,22 @@ func (s *notConnected) out(p Packet) bool {
 
 const noSessionStateFirstSend = 1
 const noSessionStateCreateSession = 2
+const noSessionStateFetchObjects = 3
 
 type noSession struct {
 	stateHolder *stateHolder
 
 	currentSessionStateCreationStep int
-	currentObjectID                 uint32
+	currentObjectID                 uint8
+	numberOfObjects                 uint8
 
 	sessionManaging *common.Definition
 }
 
 func (s *noSession) start() {
 	log.Info("Started noSession state")
+
+	s.currentSessionStateCreationStep = noSessionStateFirstSend
 
 	var err error
 	s.sessionManaging, err = definitions.GetDefinitionForName("SessionManaging")
@@ -101,10 +108,29 @@ func (s *noSession) in(p Packet) bool {
 
 func (s *noSession) out(p Packet) bool {
 	if p.definition == s.sessionManaging {
-		if p.cmd == objectCmd {
+		if p.cmd == objectCmd || p.cmd == objectCmdWithAck {
 			log.Infof("%d %d %d %d %d", *(p.data["SessionID"].(*uint16)), *(p.data["ObjectID"].(*uint32)), *(p.data["ObjectInstances"].(*uint8)), *(p.data["NumberOfObjects"].(*uint8)), *(p.data["ObjectOfInterestIndex"].(*uint8)))
-			sessionManagingPacket := createSessionManagingPacket(0)
-			s.stateHolder.inChan <- sessionManagingPacket
+			numberOfObjects := *(p.data["NumberOfObjects"].(*uint8))
+			if numberOfObjects != 0 {
+				s.numberOfObjects = numberOfObjects - 1
+			}
+			if p.cmd == objectCmdWithAck {
+				log.Info("objectCmdWithAck")
+				sessionManagingPacketAck := createSessionManagingPacketAck()
+				s.stateHolder.inChan <- sessionManagingPacketAck
+
+				sessionManagingPacket := createSessionManagingPacket(4224, s.currentObjectID)
+				s.currentObjectID++
+				s.currentSessionStateCreationStep = noSessionStateFetchObjects
+				s.stateHolder.inChan <- sessionManagingPacket
+
+				if s.currentObjectID > s.numberOfObjects {
+					s.stateHolder.setState(&stream{})
+				}
+			} else {
+				sessionManagingPacket := createSessionManagingPacket(0, 0)
+				s.stateHolder.inChan <- sessionManagingPacket
+			}
 		} else if p.cmd == objectAck {
 			log.Info("Received Ack for SessionManaging")
 		} else if p.cmd == objectNack {
@@ -123,11 +149,13 @@ func (s *stream) start() {
 }
 
 func (s *stream) in(p Packet) bool {
-	return false
+	log.Info(p)
+	return true
 }
 
 func (s *stream) out(p Packet) bool {
-	return false
+	log.Info(p)
+	return true
 }
 
 func newStateHolder(d *dispatcher.Dispatcher) *stateHolder {
@@ -195,7 +223,7 @@ func createSessionManagingRequest() Packet {
 	return *packet
 }
 
-func createSessionManagingPacket(sessionID uint32) Packet {
+func createSessionManagingPacket(sessionID uint32, objectOfInterestIndex uint8) Packet {
 	definition, err := definitions.GetDefinitionForName("SessionManaging")
 	if err != nil {
 		log.Fatal(err)
@@ -205,8 +233,17 @@ func createSessionManagingPacket(sessionID uint32) Packet {
 		"ObjectID":              float64(0),
 		"ObjectInstances":       float64(0),
 		"NumberOfObjects":       float64(0),
-		"ObjectOfInterestIndex": float64(0),
+		"ObjectOfInterestIndex": float64(objectOfInterestIndex),
 	})
+	return *packet
+}
+
+func createSessionManagingPacketAck() Packet {
+	definition, err := definitions.GetDefinitionForName("SessionManaging")
+	if err != nil {
+		log.Fatal(err)
+	}
+	packet := newPacket(definition, objectAck, 0, map[string]interface{}{})
 	return *packet
 }
 

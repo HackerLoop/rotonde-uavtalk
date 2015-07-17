@@ -278,7 +278,7 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 
 	sh := newStateHolder(d)
 
-	link, err := newUSBLink() //newTCPLink()
+	link, err := newTCPLink() //newUSBLink()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -319,6 +319,7 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 						log.Warning(err)
 					}
 				} else {
+					// the packet is complete but its integrity is seriously questionned, we go through so we can strip it from buffer
 					log.Warning(err)
 					utils.PrintHex(buffer[from:to], to-from)
 				}
