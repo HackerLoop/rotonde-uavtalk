@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/GeertJohan/go.hid"
 	log "github.com/Sirupsen/logrus"
 	"github.com/openflylab/bridge/common"
 	"github.com/openflylab/bridge/dispatcher"
@@ -279,12 +278,11 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 
 	sh := newStateHolder(d)
 
-	cc, err := hid.Open(0x20a0, 0x41d0, "")
+	link, err := newUSBLink() //newTCPLink()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer cc.Close()
-	defer log.Println("Closing HID")
+	defer link.Close()
 
 	/*c := &serial.Config{Name: "/dev/cu.usbmodem1421", Baud: 57600}
 	cc, err := serial.OpenPort(c)
@@ -297,7 +295,7 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 		buffer := make([]byte, maxHIDFrameSize)
 		packet := make([]byte, 0, 4096)
 		for {
-			n, err := cc.Read(buffer) // cc.ReadTimeout(buffer, 50)
+			n, err := link.Read(buffer)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -307,7 +305,7 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 			//log.Info("received:")
 			//utils.PrintHex(buffer, int(2+buffer[1]))
 
-			packet = append(packet, buffer[2:2+buffer[1]]...)
+			packet = append(packet, buffer...)
 			//log.Info(len(packet))
 			//log.Info("packet:")
 			//utils.PrintHex(packet, len(packet))
@@ -336,9 +334,8 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 		}
 	}()
 
-	// To USB
+	// To Controller
 	go func() {
-		fixedLengthWriteBuffer := make([]byte, maxHIDFrameSize)
 		for {
 			packet := <-sh.inChan
 
@@ -351,22 +348,9 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 			//log.Info("sending")
 			//utils.PrintHex(binaryPacket, len(binaryPacket))
 
-			currentOffset := 0
-			for currentOffset < len(binaryPacket) {
-				toWriteLength := len(binaryPacket) - currentOffset
-				if toWriteLength > maxHIDFrameSize-2 {
-					toWriteLength = maxHIDFrameSize - 2
-				}
-				fixedLengthWriteBuffer[0] = 0x02
-				fixedLengthWriteBuffer[1] = byte(toWriteLength)
-				copy(fixedLengthWriteBuffer[2:], binaryPacket[currentOffset:currentOffset+toWriteLength])
-				log.Info("sending")
-				utils.PrintHex(fixedLengthWriteBuffer, len(fixedLengthWriteBuffer))
-				_, err := cc.Write(fixedLengthWriteBuffer)
-				if err != nil {
-					log.Fatal(err)
-				}
-				currentOffset += toWriteLength
+			_, err = link.Write(binaryPacket)
+			if err != nil {
+				log.Fatal(err)
 			}
 		}
 	}()
