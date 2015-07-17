@@ -20,7 +20,7 @@ type Update struct {
 	Data       Object `json:"data"`
 }
 
-// Request is the packet that requests a common data, is forwarded to the owner of a common (the one the sent the definition)
+// Request is the packet that requests a common data, is forwarded to the owner of a definition (the one that sent the definition)
 type Request struct {
 	ObjectID   uint32 `json:"objectId"`
 	InstanceID uint16 `json:"instanceId"`
@@ -130,7 +130,7 @@ func (dispatcher *Dispatcher) dispatchDefinition(from int, definition *common.De
 
 func (dispatcher *Dispatcher) dispatchRequest(request *Request) {
 	for _, connection := range dispatcher.connections {
-		if _, err := connection.definitions.GetDefinitionForObjectID(request.ObjectID); err != nil {
+		if _, err := connection.definitions.GetDefinitionForObjectID(request.ObjectID); err == nil {
 			connection.InChan <- *request
 			return
 		}

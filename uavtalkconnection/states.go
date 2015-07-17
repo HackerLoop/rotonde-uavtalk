@@ -20,7 +20,8 @@ type stateHolder struct {
 	inChan     chan Packet
 	outChan    chan Packet
 
-	state state
+	state     state
+	keepAlive bool
 }
 
 func (sh *stateHolder) setState(s state) {
@@ -115,7 +116,7 @@ func (s *noSession) out(p Packet) bool {
 				s.numberOfObjects = numberOfObjects
 			}
 			if p.cmd == objectCmdWithAck {
-				sessionManagingPacketAck := createSessionManagingPacketAck()
+				sessionManagingPacketAck := createPacketAck("SessionManaging")
 				s.stateHolder.inChan <- sessionManagingPacketAck
 
 				objectID := *(p.data["ObjectID"].(*uint32))
@@ -128,6 +129,7 @@ func (s *noSession) out(p Packet) bool {
 
 				if s.currentObjectID >= s.numberOfObjects {
 					s.stateHolder.setState(&stream{})
+					s.stateHolder.keepAlive = true
 					return false
 				}
 
@@ -157,7 +159,7 @@ func (s *stream) start() {
 }
 
 func (s *stream) in(p Packet) bool {
-	log.Info(p)
+	//log.Info(p)
 	return true
 }
 
@@ -179,10 +181,18 @@ func newStateHolder(d *dispatcher.Dispatcher) *stateHolder {
 	go func() {
 		for {
 			packet := <-sh.outChan
+
+			if sh.keepAlive == true {
+				if packet.cmd == objectCmdWithAck {
+					sh.inChan <- createPacketAck(packet.definition.Name)
+				}
+			}
+
 			if sh.state.out(packet) == true {
 				dispatcherPacket, err := newDispatherPacketFromPacket(packet)
 				if err != nil {
 					log.Warning(err)
+					continue
 				}
 				sh.connection.OutChan <- dispatcherPacket
 			}
@@ -246,8 +256,8 @@ func createSessionManagingPacket(sessionID uint32, objectOfInterestIndex uint8) 
 	return *packet
 }
 
-func createSessionManagingPacketAck() Packet {
-	definition, err := definitions.GetDefinitionForName("SessionManaging")
+func createPacketAck(objectName string) Packet {
+	definition, err := definitions.GetDefinitionForName(objectName)
 	if err != nil {
 		log.Fatal(err)
 	}

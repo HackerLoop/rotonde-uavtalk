@@ -278,7 +278,7 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 
 	sh := newStateHolder(d)
 
-	link, err := newTCPLink() //newUSBLink()
+	link, err := newUSBLink() //newTCPLink()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -296,13 +296,8 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 			if n == 0 {
 				continue
 			}
-			//log.Info("received:")
-			//utils.PrintHex(packet, len(packet[0:n]))
 
 			buffer = append(buffer, packet[0:n]...)
-			//log.Info(len(buffer))
-			//log.Info("buffer:")
-			//utils.PrintHex(buffer, len(buffer))
 
 			for {
 				ok, from, to, err := bufferComplete(buffer)
@@ -310,8 +305,6 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 					if ok != true {
 						break
 					}
-					//log.Info("buffer complete:")
-					//utils.PrintHex(buffer[from:to], to-from)
 
 					if uavTalkObject, err := newPacketFromBinary(buffer[from:to]); err == nil {
 						sh.outChan <- *uavTalkObject
@@ -325,8 +318,6 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 				}
 				copy(buffer, buffer[to:]) // baaaaah !! ring packet to the rescue ?
 				buffer = buffer[0 : len(buffer)-to]
-				//log.Info("buffer:")
-				//utils.PrintHex(buffer, len(buffer))
 			}
 		}
 	}()
@@ -338,12 +329,9 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 
 			binaryPacket, err := buffer.toBinary()
 			if err != nil {
-				log.Println(err)
+				log.Warning(err)
 				continue
 			}
-
-			//log.Info("sending")
-			//utils.PrintHex(binaryPacket, len(binaryPacket))
 
 			_, err = link.Write(binaryPacket)
 			if err != nil {
