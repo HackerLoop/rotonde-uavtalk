@@ -3,9 +3,8 @@ package dispatcher
 import (
 	"reflect"
 
-	"github.com/openflylab/bridge/uavobject"
-
 	log "github.com/Sirupsen/logrus"
+	"github.com/openflylab/bridge/common"
 )
 
 // ChanQueueLength buffered channl length
@@ -14,14 +13,14 @@ const ChanQueueLength = 100
 // Object native representation of a UAVPacket, just a map
 type Object map[string]interface{}
 
-// Update is the UAVTalk protocol packet, encapsulates a UAVObject in the field Data
+// Update is the UAVTalk protocol packet, encapsulates a common in the field Data
 type Update struct {
 	ObjectID   uint32 `json:"objectId"`
 	InstanceID uint16 `json:"instanceId"`
 	Data       Object `json:"data"`
 }
 
-// Request is the packet that requests a uavobject data, is forwarded to the owner of a UAVObject (the one the sent the definition)
+// Request is the packet that requests a common data, is forwarded to the owner of a common (the one the sent the definition)
 type Request struct {
 	ObjectID   uint32 `json:"objectId"`
 	InstanceID uint16 `json:"instanceId"`
@@ -34,7 +33,7 @@ type Subscription struct {
 
 // Connection : basic interface representing a connection to the dispatcher
 type Connection struct {
-	definitions   uavobject.Definitions
+	definitions   common.Definitions
 	subscriptions []uint32
 	InChan        chan interface{}
 	OutChan       chan interface{}
@@ -114,7 +113,7 @@ func (dispatcher *Dispatcher) dispatchUpdate(from int, update *Update) {
 	}
 }
 
-func (dispatcher *Dispatcher) dispatchDefinition(from int, definition *uavobject.Definition) {
+func (dispatcher *Dispatcher) dispatchDefinition(from int, definition *common.Definition) {
 	for i, connection := range dispatcher.connections {
 		if i == from {
 			continue
@@ -146,7 +145,7 @@ func (dispatcher *Dispatcher) processChannels() {
 			log.Info("Executing subscribe")
 			connection := dispatcher.connections[chosen-1]
 			connection.subscriptions = append(connection.subscriptions, data.ObjectID)
-		case uavobject.Definition:
+		case common.Definition:
 			log.Info("Dispatching Definition message")
 			connection := dispatcher.connections[chosen-1]
 			connection.definitions = append(connection.definitions, &data)

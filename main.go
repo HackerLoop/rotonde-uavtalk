@@ -8,7 +8,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/openflylab/bridge/dispatcher"
-	"github.com/openflylab/bridge/usbconnection"
+	"github.com/openflylab/bridge/uavtalkconnection"
 	"github.com/openflylab/bridge/websocketconnection"
 )
 
@@ -16,7 +16,7 @@ func main() {
 	runtime.GOMAXPROCS(1) //runtime.NumCPU())
 
 	if len(os.Args) < 2 {
-		log.Fatal(fmt.Sprintf("Usage: %s uavobject_directory/", os.Args[0]))
+		log.Fatal(fmt.Sprintf("Usage: %s common_directory/", os.Args[0]))
 	}
 
 	port := flag.Int("port", 4224, "port the websocket will listen on")
@@ -24,7 +24,7 @@ func main() {
 
 	d := dispatcher.NewDispatcher()
 
-	go usbconnection.Start(d, os.Args[1])
+	go uavtalkconnection.Start(d, os.Args[1])
 
 	go websocketconnection.Start(d, *port)
 

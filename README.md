@@ -27,11 +27,11 @@ system.
 
 ### Running
 
-A path to a folder containing UAVobjects definitions must be provided.
-You can easily find them by cloning [Taulabs](https://github.com/TauLabs/TauLabs) in the folder `shared/uavobjectdefinition`.
+A path to a folder containing commons definitions must be provided.
+You can easily find them by cloning [Taulabs](https://github.com/TauLabs/TauLabs) in the folder `shared/commondefinition`.
 
 ```
-$ ./bridge -port 4242 uavobjectdefinition/
+$ ./bridge -port 4242 commondefinition/
 2015/06/21 14:43:07 Websocket server started on port 4242
 ```
 
@@ -41,16 +41,16 @@ Port to listen on can be specified with `-port PORT`.
 
 Taulabs' flight controller communication is encapsulated with [UAVTalk](https://wiki.openpilot.org/display/WIKI/UAVTalk) protocol.
 Basically, it's a stream of structures carrying drone related data, packaged in a binary format before being sent over the wire. 
-These structures are called *UAVObject*s and allows to communicate with
+These structures are called *common*s and allows to communicate with
 activated modules on the flight controller. 
 
-For example, to control a drone's orientation while flying, an UAVObject
+For example, to control a drone's orientation while flying, an common
 named `ManualControlCommand` can be sent to the flight controller. It
 will try to stabilize the drone by adjusting each engines power to match the received settings.
-Feel free to browse the exhaustive [list of UAVObjects.](https://gist.github.com/jhchabran/972ad7660398f478d990)
+Feel free to browse the exhaustive [list of commons.](https://gist.github.com/jhchabran/972ad7660398f478d990)
 
 The present project, referenced as the *Bridge* manages the USB
-connection to the drone and provides a websocket that streams UAVOBjects
+connection to the drone and provides a websocket that streams commons
 expressed in JSON (they're originally expressed in XML).
 
 So instead of sending something like this:
@@ -96,7 +96,7 @@ These four json objects all share a common structure :
 
 ### Update
 
-The "update" object encapsulate an update of a UAVObject, which can be
+The "update" object encapsulate an update of a common, which can be
 found in two different contexts. 
 
 - Received as a notification that a setting had been updated. 
@@ -112,7 +112,7 @@ For example, the attitude module (which is responsible for attitude estimation, 
     "objectId": 1234, // displayed on start of bridge
     "instanceId": 0, // see UAVTalk documentation for info
     "data": {
-      // UAVObject data, as described by the definitions
+      // common data, as described by the definitions
     }
   }
 }
@@ -120,7 +120,7 @@ For example, the attitude module (which is responsible for attitude estimation, 
 
 # Req
 
-Some UAVObjects are sent periodically, like the AttitudeActual that is sent every 100 ms, but others have different update policies, for example, the AttitudeSettings object is sent when changed, which means if you want its value you can either wait for it to change (which should not occure in normal condition), or just request it by sending a "req" object into the pipe, the response will be received as a "update" object.
+Some commons are sent periodically, like the AttitudeActual that is sent every 100 ms, but others have different update policies, for example, the AttitudeSettings object is sent when changed, which means if you want its value you can either wait for it to change (which should not occure in normal condition), or just request it by sending a "req" object into the pipe, the response will be received as a "update" object.
 
 ```json
 {
@@ -147,14 +147,14 @@ When you connect to the bridge nothing will be received except definitions, you 
 
 # Def
 
-Each uavobject has a set of fields and meta datas, when a uavobject is available (like GPS), the module providing this feature sends its definition to the bridge which then dispatches a definition to the clients. Given that a uavobject reflects an available feature of the drone, definitions give clients a clear overview of the available features.
+Each common has a set of fields and meta datas, when a common is available (like GPS), the module providing this feature sends its definition to the bridge which then dispatches a definition to the clients. Given that a common reflects an available feature of the drone, definitions give clients a clear overview of the available features.
 A client can send definitions to the bridge, exposing the feature that it provides.
 
 ```json
 {
   "type": "def",
   "payload": {
-    // meta datas from uavobject, at first will be tightly linked to definitions found in the xml files
+    // meta datas from common, at first will be tightly linked to definitions found in the xml files
   }
 }
 ```

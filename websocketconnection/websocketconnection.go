@@ -9,11 +9,11 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/websocket"
 	"github.com/mitchellh/mapstructure"
+	"github.com/openflylab/bridge/common"
 	"github.com/openflylab/bridge/dispatcher"
-	"github.com/openflylab/bridge/uavobject"
 )
 
-// Packet is the JSON representation of an UAVTalk package, the Data field contains the UAVObject JSON representation.
+// Packet is the JSON representation of an UAVTalk package, the Data field contains the common JSON representation.
 // More infos at https://wiki.openpilot.org/display/WIKI/UAVTalk
 // Warning: the link above might not be totally true in Taulabs, better read the code than the doc.
 type Packet struct {
@@ -68,7 +68,7 @@ func startConnection(conn *websocket.Conn, d *dispatcher.Dispatcher) {
 				packet = Packet{Type: "update", Payload: data}
 			case dispatcher.Request:
 				packet = Packet{Type: "req", Payload: data}
-			case uavobject.Definition:
+			case common.Definition:
 				packet = Packet{Type: "def", Payload: data}
 			}
 
@@ -120,7 +120,7 @@ func startConnection(conn *websocket.Conn, d *dispatcher.Dispatcher) {
 					mapstructure.Decode(packet.Payload, &subscription)
 					dispatcherPacket = subscription
 				case "def":
-					definition := uavobject.Definition{}
+					definition := common.Definition{}
 					mapstructure.Decode(packet.Payload, &definition)
 					dispatcherPacket = definition
 				}

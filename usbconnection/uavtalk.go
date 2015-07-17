@@ -3,16 +3,103 @@ package usbconnection
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/xml"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"sort"
+	"strings"
 
 	"github.com/GeertJohan/go.hid"
 	log "github.com/Sirupsen/logrus"
+	"github.com/openflylab/bridge/common"
 	"github.com/openflylab/bridge/dispatcher"
-	"github.com/openflylab/bridge/uavobject"
 	"github.com/openflylab/bridge/utils"
 )
 
-var definitions uavobject.Definitions
+var definitions common.Definitions
+
+// newDefinitions loads all xml files from a directory
+func newDefinitions(dir string) (common.Definitions, error) {
+	fileInfos, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	definitions := make([]*common.Definition, 0, 150)
+	for _, fileInfo := range fileInfos {
+		filePath := fmt.Sprintf("%s%s", dir, fileInfo.Name())
+		definition, err := newDefinition(filePath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		definitions = append(definitions, definition)
+	}
+	return definitions, nil
+}
+
+// NewDefinition create an Definition from an xml file.
+func newDefinition(filePath string) (*common.Definition, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	decoder := xml.NewDecoder(file)
+
+	var content = &struct {
+		UAVObject *common.Definition `xml:"object"`
+	}{}
+	decoder.Decode(content)
+
+	uavobject := content.UAVObject
+
+	// fields post process
+	for _, field := range uavobject.Fields {
+		if len(field.CloneOf) != 0 {
+			continue
+		}
+
+		if field.Elements == 0 {
+			field.Elements = 1
+		}
+
+		if len(field.ElementNamesAttr) > 0 {
+			field.ElementNames = strings.Split(field.ElementNamesAttr, ",")
+			field.Elements = len(field.ElementNames)
+		} else if len(field.ElementNames) > 0 {
+			field.Elements = len(field.ElementNames)
+		}
+
+		if len(field.OptionsAttr) > 0 {
+			field.Options = strings.Split(field.OptionsAttr, ",")
+		}
+
+		field.FieldTypeInfo, err = common.TypeInfos.FieldTypeForString(field.Type)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// create clones
+	for _, field := range uavobject.Fields {
+		if len(field.CloneOf) != 0 {
+			clonedField, err := uavobject.Fields.FieldForName(field.CloneOf)
+			if err != nil {
+				return nil, err
+			}
+			name, cloneOf := field.Name, field.CloneOf
+			*field = *clonedField
+			field.Name, field.CloneOf = name, cloneOf
+		}
+	}
+
+	sort.Stable(uavobject.Fields)
+
+	calculateID(uavobject)
+
+	return common, nil
+}
 
 // TODO: refactor for better value reading (encoding/binary ?)
 // See uavtalk.cpp state machine pattern in GCS
@@ -30,7 +117,7 @@ const objectNack = 4
 
 // Packet data from/to the flight controller
 type Packet struct {
-	definition *uavobject.Definition
+	definition *common.Definition
 	cmd        uint8
 	length     uint16
 	instanceID uint16
@@ -157,7 +244,7 @@ func newPacketFromBinary(binaryPacket []byte) (*Packet, error) {
 	return &packet, nil
 }
 
-func newPacket(definition *uavobject.Definition, cmd uint8, instanceID uint16, data map[string]interface{}) *Packet {
+func newPacket(definition *common.Definition, cmd uint8, instanceID uint16, data map[string]interface{}) *Packet {
 	packet := Packet{}
 	packet.definition = definition
 	packet.cmd = cmd
@@ -179,7 +266,7 @@ func newPacket(definition *uavobject.Definition, cmd uint8, instanceID uint16, d
 
 // Start starts the HID driver
 func Start(d *dispatcher.Dispatcher, definitionsDir string) {
-	defs, err := uavobject.NewDefinitions(definitionsDir)
+	defs, err := newDefinitions(definitionsDir)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -210,7 +297,7 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 		buffer := make([]byte, maxHIDFrameSize)
 		packet := make([]byte, 0, 4096)
 		for {
-			n, err := cc.ReadTimeout(buffer, 50)
+			n, err := cc.Read(buffer) // cc.ReadTimeout(buffer, 50)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -261,16 +348,15 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 				continue
 			}
 
-			//log.Info("sending")
-			//utils.PrintHex(binaryPacket, len(binaryPacket))
-
 			currentOffset := 0
 			for currentOffset < len(binaryPacket) {
 				toWriteLength := len(binaryPacket) - currentOffset
 				if toWriteLength > maxHIDFrameSize-2 {
 					toWriteLength = maxHIDFrameSize - 2
 				}
-				copy(fixedLengthWriteBuffer, append([]byte{0x02, byte(toWriteLength)}, binaryPacket[currentOffset:currentOffset+toWriteLength]...))
+				fixedLengthWriteBuffer[0] = 0x02
+				fixedLengthWriteBuffer[1] = byte(toWriteLength)
+				copy(fixedLengthWriteBuffer[2:], binaryPacket[currentOffset:currentOffset+toWriteLength])
 				log.Info("sending")
 				utils.PrintHex(fixedLengthWriteBuffer, len(fixedLengthWriteBuffer))
 				_, err := cc.Write(fixedLengthWriteBuffer)

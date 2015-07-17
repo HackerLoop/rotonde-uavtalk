@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/openflylab/bridge/common"
 	"github.com/openflylab/bridge/dispatcher"
-	"github.com/openflylab/bridge/uavobject"
 )
 
 /*
@@ -37,7 +37,7 @@ type state interface {
 type notConnected struct {
 	stateHolder *stateHolder
 
-	flightTelemetryStats *uavobject.Definition
+	flightTelemetryStats *common.Definition
 }
 
 func (s *notConnected) start() {
@@ -79,7 +79,7 @@ type noSession struct {
 	currentSessionStateCreationStep int
 	currentObjectID                 uint32
 
-	sessionManaging *uavobject.Definition
+	sessionManaging *common.Definition
 }
 
 func (s *noSession) start() {
