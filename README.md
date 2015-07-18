@@ -365,7 +365,9 @@ It looks like this:
 }
 ```
 
-exercise: Try to unsubscribe from this packet.
+###Exercise
+
+Try to unsubscribe from this packet.
 
 # Contribution
 
