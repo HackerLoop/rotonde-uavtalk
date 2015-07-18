@@ -94,7 +94,7 @@ The following can be sent :
 ## Using it
 
 In most case, the bridge is used through its websocket (Rest interface is foreseen), by sending and receiving JSON objects.
-There a four types of json objects, "update", "req", "cmd", "sub" or "unsub",
+There a five types of json objects, "update", "req", "cmd", "sub" or "unsub",
 which are detailed below.
 
 These four json objects all share a common structure :
