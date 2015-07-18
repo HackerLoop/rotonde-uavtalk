@@ -2,13 +2,16 @@
 
 ## TL;DR
 
+Control drone as a device through JSON websocket API.
+
+# Intro
+
+This document describes the openskybot bridge and its underlying mecanism, if you just want to control the drone,
+head to [Drone.js](https://github.com/openflylab/drone.js) which provides a much more user-friendly interface.
+
 In an effort to get [Taulabs flight controller](http://taulabs.org/) usable from any language
 this "bridge" had been created. Its main purpose is to get the telemetry coming from
 the USB HID connection accessible as a bi-directional stream of JSON over a websocket.
-
-Javascript being a popular language these days, we also created
-[Drone.js](https://github.com/openflylab/drone.js) which provides a
-basic library to interact with it.
 
 ## Installation
 
@@ -40,9 +43,9 @@ Port to listen on can be specified with `-port PORT`.
 ## Overview
 
 Taulabs' flight controller communication is encapsulated with [UAVTalk](https://wiki.openpilot.org/display/WIKI/UAVTalk) protocol.
-Basically, it's a stream of structures carrying drone related data, packaged in a binary format before being sent over the wire. 
+Basically, it's a stream of structures carrying drone related data, packaged in a binary format before being sent over the wire.
 These structures are called *common*s and allows to communicate with
-activated modules on the flight controller. 
+activated modules on the flight controller.
 
 For example, to control a drone's orientation while flying, an common
 named `ManualControlCommand` can be sent to the flight controller. It
@@ -59,7 +62,7 @@ So instead of sending something like this:
     3C 22 1D 00 E8 B7 75 3F 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 E5
 ```
 
-The following can be sent : 
+The following can be sent :
 
 ```json
 {
@@ -97,9 +100,9 @@ These four json objects all share a common structure :
 ### Update
 
 The "update" object encapsulate an update of a common, which can be
-found in two different contexts. 
+found in two different contexts.
 
-- Received as a notification that a setting had been updated. 
+- Received as a notification that a setting had been updated.
 - Sent to update a setting
 
 For example, the attitude module (which is responsible for attitude estimation, which means "what is the current angle of the drone") will periodically send the quaternion representing the current angle of the drone through the AttitudeActual object. But "update" object can also be used to set setting values for the desired module, for example, if you send a AttitudeSettings update object through websocket it will configure the PID algorithm that enables your drone to stay still in the air.

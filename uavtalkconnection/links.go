@@ -7,6 +7,11 @@ import (
 	"github.com/GeertJohan/go.hid"
 )
 
+/**
+ * This file contains a simple abstraction layer for the telemetry link (eg. how are we connecting to the controller ?)
+ * It currently supports USB HID and TCP links.
+ */
+
 type linker interface {
 	io.Reader
 	io.Writer
@@ -33,10 +38,12 @@ func (l usbLink) Write(b []byte) (int, error) {
 	currentOffset := 0
 	for currentOffset < len(b) {
 		toWriteLength := len(b) - currentOffset
+		// packet on the HID link can't be > maxHIDFrameSize, split it if it's the case.
 		if toWriteLength > maxHIDFrameSize-2 {
 			toWriteLength = maxHIDFrameSize - 2
 		}
 
+		// USB HID link requires a reportID and packet length as first bytes
 		l.fixedLengthWriteBuffer[0] = 0x02
 		l.fixedLengthWriteBuffer[1] = byte(toWriteLength)
 		copy(l.fixedLengthWriteBuffer[2:], b[currentOffset:currentOffset+toWriteLength])
@@ -61,7 +68,7 @@ func (l usbLink) Read(b []byte) (int, error) {
 		return 0, nil
 	}
 	s := int(b[1])
-	copy(b, b[2:])
+	copy(b, b[2:]) // this sucks...
 
 	return s, nil
 }

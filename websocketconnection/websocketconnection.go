@@ -21,7 +21,7 @@ type Packet struct {
 	Payload interface{} `json:"payload"`
 }
 
-// Start the websocket server, each peer connecting to this websocket will be added as connection to the dispatcher
+// Start the websocket server, each peer connecting to this websocket will be added as a connection to the dispatcher
 func Start(d *dispatcher.Dispatcher, port int) {
 	var upgrader = websocket.Upgrader{
 		ReadBufferSize:  2048,
@@ -83,8 +83,6 @@ func startConnection(conn *websocket.Conn, d *dispatcher.Dispatcher) {
 				log.Warning(err)
 				return
 			}
-
-			// TODO log
 		}
 	}()
 
@@ -126,7 +124,6 @@ func startConnection(conn *websocket.Conn, d *dispatcher.Dispatcher) {
 					mapstructure.Decode(packet.Payload, &definition)
 					dispatcherPacket = definition
 				}
-				// TODO log
 
 				c.OutChan <- dispatcherPacket
 			}

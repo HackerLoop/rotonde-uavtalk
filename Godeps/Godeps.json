@@ -1,0 +1,37 @@
+{
+	"ImportPath": "github.com/openflylab/bridge",
+	"GoVersion": "go1.4.2",
+	"Deps": [
+		{
+			"ImportPath": "code.google.com/p/go-charset/charset",
+			"Comment": "null-32",
+			"Rev": "ebbeafdc430eb6c7e44e9a730a38eaff4c56ba3a"
+		},
+		{
+			"ImportPath": "code.google.com/p/go-charset/data",
+			"Comment": "null-32",
+			"Rev": "ebbeafdc430eb6c7e44e9a730a38eaff4c56ba3a"
+		},
+		{
+			"ImportPath": "github.com/GeertJohan/cgo.wchar",
+			"Rev": "d50cd869822d5b2cb3124150b9527177de5c3f98"
+		},
+		{
+			"ImportPath": "github.com/GeertJohan/go.hid",
+			"Rev": "294d9ee7d006a58e72f6ae3ac5f122dc3f4eed57"
+		},
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.8.2-20-gab7e46e",
+			"Rev": "ab7e46ea22bd379e660230844f96d20f1dabc21a"
+		},
+		{
+			"ImportPath": "github.com/gorilla/websocket",
+			"Rev": "ecff5aabe41f13b4cdf897e3c0c9bbccbe552a29"
+		},
+		{
+			"ImportPath": "github.com/mitchellh/mapstructure",
+			"Rev": "2caf8efc93669b6c43e0441cdc6aed17546c96f3"
+		}
+	]
+}
