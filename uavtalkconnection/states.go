@@ -188,8 +188,8 @@ func newStateHolder(d *dispatcher.Dispatcher) *stateHolder {
 				if packet.cmd == objectCmdWithAck {
 					sh.inChan <- createPacketAck(packet.definition)
 				} else if packet.cmd == objectAck {
-					// send ObjectPersistence when received a Ack (this might go wrong, dunno..)
-					if packet.definition != objectPersistenceDefinition {
+					// send ObjectPersistence when received a Ack for object with Settings == true
+					if packet.definition != objectPersistenceDefinition && packet.definition.Settings == true {
 						sh.inChan <- createPersistObject(packet.definition, packet.instanceID)
 					}
 				}
