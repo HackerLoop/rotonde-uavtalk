@@ -58,7 +58,7 @@ func interfaceToUAVTalk(field *common.FieldDefinition, writer *bytes.Buffer, val
 		valueArray, ok := value.([]interface{})
 
 		if ok == false {
-			return errors.New("Value should be a slice for fields with Elements > 1")
+			return fmt.Errorf("Value for %s should be a map of fields with Elements > 1", field.Name)
 		}
 
 		for _, value := range valueArray {
@@ -70,7 +70,7 @@ func interfaceToUAVTalk(field *common.FieldDefinition, writer *bytes.Buffer, val
 		valueMap, ok := value.(map[string]interface{})
 
 		if ok == false {
-			return errors.New("Value should be a map of fields with Elements > 1")
+			return fmt.Errorf("Value for %s should be a map of fields with Elements > 1", field.Name)
 		}
 
 		for _, name := range field.ElementNames {

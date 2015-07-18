@@ -174,6 +174,12 @@ func newStateHolder(d *dispatcher.Dispatcher) *stateHolder {
 
 	sh.setState(&notConnected{stateHolder: sh})
 
+	// cache for later use
+	objectPersistenceDefinition, err := definitions.GetDefinitionForName("ObjectPersistence")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	go func() {
 		for {
 			packet := <-sh.outChan
@@ -182,8 +188,10 @@ func newStateHolder(d *dispatcher.Dispatcher) *stateHolder {
 				if packet.cmd == objectCmdWithAck {
 					sh.inChan <- createPacketAck(packet.definition)
 				} else if packet.cmd == objectAck {
-					log.Info("persist")
-					sh.inChan <- createPersistObject(packet.definition, packet.instanceID)
+					// send ObjectPersistence when received a Ack (this might go wrong, dunno..)
+					if packet.definition != objectPersistenceDefinition {
+						sh.inChan <- createPersistObject(packet.definition, packet.instanceID)
+					}
 				}
 			}
 
@@ -258,7 +266,11 @@ func createSessionManagingPacket(sessionID uint32, objectOfInterestIndex uint8) 
 }
 
 func createPersistObject(definition *common.Definition, instanceID uint16) Packet {
-	packet := newPacket(definition, objectCmdWithAck, instanceID, map[string]interface{}{
+	objectPersistenceDefinition, err := definitions.GetDefinitionForName("ObjectPersistence")
+	if err != nil {
+		log.Fatal(err)
+	}
+	packet := newPacket(objectPersistenceDefinition, objectCmdWithAck, instanceID, map[string]interface{}{
 		"ObjectID":   float64(definition.ObjectID),
 		"InstanceID": float64(instanceID),
 		"Selection":  "SingleObject",
