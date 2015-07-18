@@ -83,14 +83,14 @@ The following can be sent :
 ## Using it
 
 In most case, the bridge is used through its websocket (Rest interface is foreseen), by sending and receiving JSON objects.
-There a four types of json objects, "update", "req", "cmd" or "sub",
+There a four types of json objects, "update", "req", "cmd", "sub" or "unsub",
 which are detailed below.
 
 These four json objects all share a common structure :
 
 ```json
 {
-  type: "", // "update", "req", "cmd" or "sub"
+  type: "", // "update", "req", "cmd", "sub" or "unsub"
   payload: {
     // mixed, based on type
   }
@@ -137,13 +137,24 @@ Some UAVObjects are sent periodically, like the AttitudeActual that is sent ever
 }
 ```
 
-### Sub
+### Sub / Unsub
 
 When you connect to the bridge nothing will be received except definitions, you have to subscribe to a given objectId in order to start receiving its updates.
 
 ```json
 {
   "type": "sub",
+  "payload": {
+    "objectId": 1234 // displayed on start of bridge, will be received from the def packet
+  }
+}
+```
+
+and you can unsubscribe from this objectId with:
+
+```json
+{
+  "type": "unsub",
   "payload": {
     "objectId": 1234 // displayed on start of bridge, will be received from the def packet
   }
