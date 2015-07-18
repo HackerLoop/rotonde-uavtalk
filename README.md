@@ -91,7 +91,7 @@ The following can be sent :
 }
 ```
 
-## Using it
+## JSON protocol
 
 In most case, the bridge is used through its websocket (Rest interface is foreseen), by sending and receiving JSON objects.
 There a five types of json objects, "update", "req", "cmd", "sub" or "unsub",
@@ -118,7 +118,7 @@ found in two different contexts.
 
 For example, the attitude module (which is responsible for attitude estimation, which means "what is the current angle of the drone") will periodically send the quaternion representing the current angle of the drone through the AttitudeActual object.
 
-But "update" objects can also be used to set setting values for the desired module, for example, if you send a AttitudeSettings update object through websocket it will configure the PID algorithm that enables your drone to stay still in the air.
+But "update" objects can also be used to set setting values for the desired module, for example, if you send a [AttitudeSettings](https://raw.githubusercontent.com/TauLabs/TauLabs/next/shared/uavobjectdefinition/attitudesettings.xml) update object through websocket it will configure the PID algorithm that enables your drone to stay still in the air.
 
 ```json
 {
@@ -178,6 +178,8 @@ Each UAVObject has a set of fields and meta datas, when a UAVObject is available
 Given that a UAVObject reflects an available feature of the drone, definitions give clients a clear overview of the available features.
 A client can send definitions to the bridge, exposing the feature that it provides.
 
+When you connect to the bridge, it will start be sending you all the currently available definitions, new definitions can still become available at any time.
+
 ```json
 {
   "type": "def",
@@ -186,6 +188,184 @@ A client can send definitions to the bridge, exposing the feature that it provid
   }
 }
 ```
+
+# Tutorial #1
+
+Let's say we want to make a quick app that shows a 3d representation of our drone in air.
+We'd need to have the current 3d angle of our drone, the good news is that we actually have UAVObject just for that !
+It's called [AttitudeActual](https://raw.githubusercontent.com/TauLabs/TauLabs/next/shared/uavobjectdefinition/attitudeactual.xml), and the 3d angle is given in two forms, as Euler angle with the Yaw, Pitch and Roll fields, and as a quaternion with the q1, q2, q3, q4 fields.
+
+so let's start by connecting by the websocket, which will start by sending us definitions one by one, once we reach the AttitudeActual definition:
+
+```json
+{
+   "type":"def",
+   "payload":{
+      "name":"AttitudeActual",
+      "description":"The updated Attitude estimation from @ref AHRSCommsModule.",
+      "singleInstance":true,
+      "settings":false,
+      "category":"",
+      "id":869979622,
+      "access":{
+         "gcs":"readwrite",
+         "flight":"readwrite"
+      },
+      "telemetryGcs":{
+         "acked":false,
+         "updateMode":"manual",
+         "period":"0"
+      },
+      "telemetryFlight":{
+         "acked":false,
+         "updateMode":"periodic",
+         "period":"100"
+      },
+      "logging":{
+         "updateMode":"manual",
+         "period":"0"
+      },
+      "fields":[
+         {
+            "name":"q1",
+            "units":"",
+            "FieldTypeInfo":{
+               "Index":6,
+               "Name":"float",
+               "Size":4
+            },
+            "elements":1,
+            "elementsName":null,
+            "options":null,
+            "defaultValue":"",
+            "cloneOf":""
+         },
+         {
+            "name":"q2",
+            "units":"",
+            "FieldTypeInfo":{
+               "Index":6,
+               "Name":"float",
+               "Size":4
+            },
+            "elements":1,
+            "elementsName":null,
+            "options":null,
+            "defaultValue":"",
+            "cloneOf":""
+         },
+         {
+            "name":"q3",
+            "units":"",
+            "FieldTypeInfo":{
+               "Index":6,
+               "Name":"float",
+               "Size":4
+            },
+            "elements":1,
+            "elementsName":null,
+            "options":null,
+            "defaultValue":"",
+            "cloneOf":""
+         },
+         {
+            "name":"q4",
+            "units":"",
+            "FieldTypeInfo":{
+               "Index":6,
+               "Name":"float",
+               "Size":4
+            },
+            "elements":1,
+            "elementsName":null,
+            "options":null,
+            "defaultValue":"",
+            "cloneOf":""
+         },
+         {
+            "name":"Roll",
+            "units":"degrees",
+            "FieldTypeInfo":{
+               "Index":6,
+               "Name":"float",
+               "Size":4
+            },
+            "elements":1,
+            "elementsName":null,
+            "options":null,
+            "defaultValue":"",
+            "cloneOf":""
+         },
+         {
+            "name":"Pitch",
+            "units":"degrees",
+            "FieldTypeInfo":{
+               "Index":6,
+               "Name":"float",
+               "Size":4
+            },
+            "elements":1,
+            "elementsName":null,
+            "options":null,
+            "defaultValue":"",
+            "cloneOf":""
+         },
+         {
+            "name":"Yaw",
+            "units":"degrees",
+            "FieldTypeInfo":{
+               "Index":6,
+               "Name":"float",
+               "Size":4
+            },
+            "elements":1,
+            "elementsName":null,
+            "options":null,
+            "defaultValue":"",
+            "cloneOf":""
+         }
+      ]
+   }
+}
+```
+
+Yes, there is a lot on infos there, a big part of it will be stripped in futur versions.
+Anyway the one that interests us is the `id` field, 869979622. This is the id we need to subscribe to this uavobject.
+
+Let's go on and subscribe, create a json paket with the following format:
+
+```json
+{
+    "type": "sub",
+    "payload": {
+        "objectId": 869979622
+    }
+}
+```
+
+send it to the dispatcher and it will start sending you the AttitudeActual object periodically. yay.
+It looks like this:
+
+```json
+{
+   "type":"update",
+   "payload":{
+      "objectId":869979622,
+      "instanceId":0,
+      "data":{
+         "Pitch":-34.833576,
+         "Roll":92.87233,
+         "Yaw":67.75378,
+         "q1":0.42503926,
+         "q2":0.688997,
+         "q3":0.21412396,
+         "q4":0.5466039
+      }
+   }
+}
+```
+
+exercise: Try to unsubscribe from this packet.
 
 # Contribution
 
