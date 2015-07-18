@@ -10,7 +10,7 @@ head to [Drone.js](https://github.com/openflylab/drone.js) (coming soon) which p
 The main idea of this project is give easy access to features like "take me to this coordinates", just like
 you have access to a "print this document" feature on most computers.
 So we thought that it would be nice if we could plug a computer to a drone frame, and just have it flying in a snap,
-so we could just focus on what can be done with a drone once the flying part is easily accessible.
+so we could just focus on what can be done with a computer once it's flying.
 
 Having a machine flying, whether it is a quad rotor or a plane, requires strong mathematical knowledge in a piece of software called a `Flight controller`. This project relies on [Taulabs](http://taulabs.org/) to fulfill this task, and thus requires an actual piece of hardware to run the flight controller on, just connect it to your embedded computer by USB, like any printer or mouse.
 
