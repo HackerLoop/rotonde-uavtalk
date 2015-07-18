@@ -54,8 +54,8 @@ Default port is 4224, port to listen on can be specified with `-port PORT`.
 
 The Taulabs flight controller software uses a very handy modular architecture, each modules are abstracted from
 each others, and communicate by sending and receiving UAVObjects through a common bus.
-Each modules expose there functionalities and settings through one or more *UAVObject*s. Modules can modify other
-modules' UAVObjects to communicate with them.
+Each module exposes hist functionalities and settings through one or more *UAVObject*s. Modules can modify other
+modules' UAVObjects to communicate with each other.
 
 TODO: insert graphic ?
 
