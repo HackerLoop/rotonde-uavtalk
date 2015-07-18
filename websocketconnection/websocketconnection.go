@@ -119,6 +119,10 @@ func startConnection(conn *websocket.Conn, d *dispatcher.Dispatcher) {
 					subscription := dispatcher.Subscription{}
 					mapstructure.Decode(packet.Payload, &subscription)
 					dispatcherPacket = subscription
+				case "unsub":
+					unsubscription := dispatcher.Unsubscription{}
+					mapstructure.Decode(packet.Payload, &unsubscription)
+					dispatcherPacket = unsubscription
 				case "def":
 					definition := common.Definition{}
 					mapstructure.Decode(packet.Payload, &definition)

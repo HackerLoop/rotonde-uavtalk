@@ -31,6 +31,11 @@ type Subscription struct {
 	ObjectID uint32 `json:"objectId"`
 }
 
+// Unsubscription removes an objectID from the subscriptions of the sending connection
+type Unsubscription struct {
+	ObjectID uint32 `json:"objectId"`
+}
+
 // Connection : basic interface representing a connection to the dispatcher
 type Connection struct {
 	definitions   common.Definitions
@@ -51,6 +56,22 @@ func NewConnection() *Connection {
 // Close closes the connection, possible threading issues...
 func (connection *Connection) Close() {
 	close(connection.OutChan)
+}
+
+func (connection *Connection) addSubscription(objectID uint32) {
+	connection.subscriptions = append(connection.subscriptions, objectID)
+}
+
+func (connection *Connection) removeSubscription(objectID uint32) {
+	for i, subscription := range connection.subscriptions {
+		if subscription == objectID {
+			if i < len(connection.subscriptions)-1 {
+				copy(connection.subscriptions[i:], connection.subscriptions[i+1:])
+			}
+			connection.subscriptions = connection.subscriptions[0 : len(connection.subscriptions)-1]
+			return
+		}
+	}
 }
 
 // Dispatcher main dispatcher class
@@ -151,7 +172,11 @@ func (dispatcher *Dispatcher) processChannels() {
 		case Subscription:
 			log.Info("Executing subscribe")
 			connection := dispatcher.connections[chosen-1]
-			connection.subscriptions = append(connection.subscriptions, data.ObjectID)
+			connection.addSubscription(data.ObjectID)
+		case Unsubscription:
+			log.Info("Executing unsubscribe")
+			connection := dispatcher.connections[chosen-1]
+			connection.removeSubscription(data.ObjectID)
 		case common.Definition:
 			log.Info("Dispatching Definition message")
 			connection := dispatcher.connections[chosen-1]
