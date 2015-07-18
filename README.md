@@ -374,7 +374,7 @@ Try to unsubscribe from this packet.
 
 We need people to develop new modules that provide crazy UAVObjects !
 The idea is simple, first have look at the [VelocityActual](https://raw.githubusercontent.com/TauLabs/TauLabs/next/shared/uavobjectdefinition/velocityactual.xml) UAVObject which provides the velocity as seen through the various sensors of the hardware, which are not necessarily perfectly precise.
-What if you could have a better estimation, like when you are close enough to the ground to have optical based velocity estimation, which is much more precise ? Then you'd a much more precise drone !
+What if you could have a better estimation, like when you are close enough to the ground to have optical based velocity estimation, which is much more precise ? Then you would have a much more precise drone !
 
 So that's the whole point of the modular architecture that Taulabs offers, some modules work perfectly on the flight controller, but others might require much more processing power, or an internet connection, these one need be on an actual computer, some other modules might even require to be in the cloud.
 The modular architecture enables to make all this transparent, just declare UAVObjects, and your are part of the whole system.
