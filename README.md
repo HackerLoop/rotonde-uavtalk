@@ -191,7 +191,7 @@ When you connect to the bridge, it will start be sending you all the currently a
 
 # Tutorial #1
 
-Let's say we want to make a quick app that shows a 3d representation of our drone in air.
+Let's say we want to make a quick monitoring app that shows a 3d representation of our drone in air.
 We'd need to have the current 3d angle of our drone, the good news is that we actually have UAVObject just for that !
 It's called [AttitudeActual](https://raw.githubusercontent.com/TauLabs/TauLabs/next/shared/uavobjectdefinition/attitudeactual.xml), and the 3d angle is given in two forms, as Euler angle with the Yaw, Pitch and Roll fields, and as a quaternion with the q1, q2, q3, q4 fields.
 
