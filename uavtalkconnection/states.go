@@ -115,7 +115,7 @@ func (s *noSession) out(p Packet) bool {
 				s.numberOfObjects = numberOfObjects
 			}
 			if p.cmd == objectCmdWithAck {
-				sessionManagingPacketAck := createPacketAck("SessionManaging")
+				sessionManagingPacketAck := createPacketAck(p.definition)
 				s.stateHolder.inChan <- sessionManagingPacketAck
 
 				objectID := p.data["ObjectID"].(uint32)
@@ -180,7 +180,10 @@ func newStateHolder(d *dispatcher.Dispatcher) *stateHolder {
 
 			if sh.keepAlive == true {
 				if packet.cmd == objectCmdWithAck {
-					sh.inChan <- createPacketAck(packet.definition.Name)
+					sh.inChan <- createPacketAck(packet.definition)
+				} else if packet.cmd == objectAck {
+					log.Info("persist")
+					sh.inChan <- createPersistObject(packet.definition, packet.instanceID)
 				}
 			}
 
@@ -195,6 +198,7 @@ func newStateHolder(d *dispatcher.Dispatcher) *stateHolder {
 		}
 	}()
 
+	// TODO implement auto-resend un-acked packet with cmd == objectCmdWithAck
 	go func() {
 		for {
 			dispatcherPacket := <-sh.connection.InChan
@@ -253,11 +257,17 @@ func createSessionManagingPacket(sessionID uint32, objectOfInterestIndex uint8) 
 	return *packet
 }
 
-func createPacketAck(objectName string) Packet {
-	definition, err := definitions.GetDefinitionForName(objectName)
-	if err != nil {
-		log.Fatal(err)
-	}
+func createPersistObject(definition *common.Definition, instanceID uint16) Packet {
+	packet := newPacket(definition, objectCmdWithAck, instanceID, map[string]interface{}{
+		"ObjectID":   float64(definition.ObjectID),
+		"InstanceID": float64(instanceID),
+		"Selection":  "SingleObject",
+		"Operation":  "Save",
+	})
+	return *packet
+}
+
+func createPacketAck(definition *common.Definition) Packet {
 	packet := newPacket(definition, objectAck, 0, map[string]interface{}{})
 	return *packet
 }
