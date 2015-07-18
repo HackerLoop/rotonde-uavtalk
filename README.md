@@ -11,7 +11,7 @@ In an effort to get [Taulabs flight controller](http://taulabs.org/) usable from
 this "bridge" had been created. Its main purpose is to get the telemetry coming from
 the [Taulabs](https://github.com/TauLabs/TauLabs) flight controller accessible as a bi-directional stream of JSON over a websocket.
 
-# Setup
+# Setup (assuming you are on a unix machine, tested on OSX and linux)
 
 ## Compilation
 
@@ -27,7 +27,8 @@ godep restore
 go build
 ```
 
-You now have an executable called `bridge` is this directory, just head to the next section to know how to launch it.
+You now have an executable called `bridge` in src/github.com/openflylab/bridge from the installation path,
+just head to the next section to know how to launch it.
 
 If something went wrong, please post the resut to these commands in a new issue.
 
