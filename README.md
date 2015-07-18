@@ -9,21 +9,25 @@ head to [Drone.js](https://github.com/openflylab/drone.js) which provides a much
 
 In an effort to get [Taulabs flight controller](http://taulabs.org/) usable from any language
 this "bridge" had been created. Its main purpose is to get the telemetry coming from
-the USB HID connection accessible as a bi-directional stream of JSON over a websocket.
+the [Taulabs](https://github.com/TauLabs/TauLabs) flight controller accessible as a bi-directional stream of JSON over a websocket.
 
-# Installation
+# Setup
 
 ## Compilation
 
 First you will need to install the [Golang](http://golang.org/) programming language (I'm working on go1.4.2, not tested others, let me know),
 
-Once setup, copy-paste in terminal:
+Once installed, copy-paste in terminal, replace [ choose_workspace_directory ] by your desired path of installation:
 ```bash
-$ go get github.com/openflylab/bridge && go get github.com/tools/godep
-$ cd $GOPATH/src/github.com/openflylab/bridge
-$ godep restore
-$ go build
+export GOPATH=[ choose_workspace_directory ]
+mkdir $GOPATH
+go get github.com/openflylab/bridge && go get github.com/tools/godep
+cd $GOPATH/src/github.com/openflylab/bridge
+godep restore
+go build
 ```
+
+You now have an executable called `bridge` is this directory, just head to the next section to know how to launch it.
 
 If something went wrong, please post the resut to these commands in a new issue.
 
@@ -32,12 +36,15 @@ If something went wrong, please post the resut to these commands in a new issue.
 A path to a folder containing UAVObjects definitions must be provided.
 You can easily find them by cloning [Taulabs](https://github.com/TauLabs/TauLabs) in the folder `shared/UAVObjectdefinition`.
 
+Execute following commands in the same directory as the `bridge` executable previously created,
+replace [ path_to_the_cloned_TauLabs_folder ] with the place you wish to clone Taulabs sources.
 ```bash
-$ ./bridge -port 4242 [path to the cloned TauLabs folder]/shared/UAVObjectdefinition
-2015/06/21 14:43:07 Websocket server started on port 4242
+export TAULABS=[ path_to_the_cloned_TauLabs_folder ]
+git clone https://github.com/TauLabs/TauLabs.git $TAULABS
+./bridge $TAULABS/shared/UAVObjectdefinition
 ```
 
-Port to listen on can be specified with `-port PORT`.
+Default port is 4224, port to listen on can be specified with `-port PORT`.
 
 # Overview
 
