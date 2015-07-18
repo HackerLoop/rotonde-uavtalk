@@ -272,9 +272,6 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 	definitions = defs
 
 	log.Infof("%d xml files loaded\n", len(definitions))
-	for _, definition := range definitions {
-		log.Infof("Name: %s ObjectID: %d", definition.Name, definition.ObjectID)
-	}
 
 	sh := newStateHolder(d)
 
