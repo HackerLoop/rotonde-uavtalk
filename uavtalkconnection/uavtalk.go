@@ -123,33 +123,33 @@ type Packet struct {
 	data       map[string]interface{}
 }
 
-func (buffer *Packet) toBinary() ([]byte, error) {
+func (packet *Packet) toBinary() ([]byte, error) {
 	writer := new(bytes.Buffer)
 
 	if err := binary.Write(writer, binary.LittleEndian, uint8(0x3c)); err != nil {
 		return nil, err
 	}
 
-	if err := binary.Write(writer, binary.LittleEndian, buffer.cmd|versionMask); err != nil {
+	if err := binary.Write(writer, binary.LittleEndian, packet.cmd|versionMask); err != nil {
 		return nil, err
 	}
 
-	if err := binary.Write(writer, binary.LittleEndian, buffer.length); err != nil {
+	if err := binary.Write(writer, binary.LittleEndian, packet.length); err != nil {
 		return nil, err
 	}
 
-	if err := binary.Write(writer, binary.LittleEndian, buffer.definition.ObjectID); err != nil {
+	if err := binary.Write(writer, binary.LittleEndian, packet.definition.ObjectID); err != nil {
 		return nil, err
 	}
 
-	if buffer.definition.SingleInstance == false {
-		if err := binary.Write(writer, binary.LittleEndian, buffer.instanceID); err != nil {
+	if packet.definition.SingleInstance == false {
+		if err := binary.Write(writer, binary.LittleEndian, packet.instanceID); err != nil {
 			return nil, err
 		}
 	}
 
-	if buffer.cmd == objectCmd || buffer.cmd == objectCmdWithAck {
-		data, err := mapToUAVTalk(buffer.definition, buffer.data)
+	if packet.cmd == objectCmd || packet.cmd == objectCmdWithAck {
+		data, err := mapToUAVTalk(packet.definition, packet.data)
 		if err != nil {
 			return nil, err
 		}
@@ -325,9 +325,9 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 	// To Controller
 	go func() {
 		for {
-			buffer := <-sh.inChan
+			packet := <-sh.inChan
 
-			binaryPacket, err := buffer.toBinary()
+			binaryPacket, err := packet.toBinary()
 			if err != nil {
 				log.Warning(err)
 				continue

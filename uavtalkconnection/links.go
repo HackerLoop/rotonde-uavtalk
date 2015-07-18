@@ -45,7 +45,9 @@ func (l usbLink) Write(b []byte) (int, error) {
 		if err != nil {
 			return currentOffset, err
 		}
-		currentOffset += n
+		if n > 2 {
+			currentOffset += n - 2
+		}
 	}
 	return currentOffset, nil
 }

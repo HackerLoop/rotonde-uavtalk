@@ -113,7 +113,9 @@ func (dispatcher *Dispatcher) dispatchUpdate(from int, update *Update) {
 			}
 		}
 		if subscribed == false {
-			continue
+			if _, err := connection.definitions.GetDefinitionForObjectID(update.ObjectID); err != nil {
+				continue
+			}
 		}
 		connection.InChan <- *update
 	}

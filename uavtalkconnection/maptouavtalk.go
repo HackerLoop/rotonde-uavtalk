@@ -45,6 +45,7 @@ func writeToUAVTalk(field *common.FieldDefinition, writer *bytes.Buffer, value i
 	if result == nil {
 		return errors.New("Could not read from typeInfo.")
 	}
+
 	if err := binary.Write(writer, binary.LittleEndian, result); err != nil {
 		return err
 	}
@@ -74,7 +75,6 @@ func interfaceToUAVTalk(field *common.FieldDefinition, writer *bytes.Buffer, val
 
 		for _, name := range field.ElementNames {
 			value := valueMap[name]
-			fmt.Println(name)
 			if err := writeToUAVTalk(field, writer, value); err != nil {
 				return err
 			}

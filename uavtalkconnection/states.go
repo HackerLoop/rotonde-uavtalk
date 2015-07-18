@@ -111,7 +111,7 @@ func (s *noSession) out(p Packet) bool {
 	if p.definition == s.sessionManaging {
 		if p.cmd == objectCmd || p.cmd == objectCmdWithAck {
 			//log.Infof("%d %d %d %d %d", *(p.data["SessionID"].(*uint16)), *(p.data["ObjectID"].(*uint32)), *(p.data["ObjectInstances"].(*uint8)), *(p.data["NumberOfObjects"].(*uint8)), *(p.data["ObjectOfInterestIndex"].(*uint8)))
-			numberOfObjects := *(p.data["NumberOfObjects"].(*uint8))
+			numberOfObjects := p.data["NumberOfObjects"].(uint8)
 			if numberOfObjects != 0 {
 				s.numberOfObjects = numberOfObjects
 			}
@@ -119,7 +119,7 @@ func (s *noSession) out(p Packet) bool {
 				sessionManagingPacketAck := createPacketAck("SessionManaging")
 				s.stateHolder.inChan <- sessionManagingPacketAck
 
-				objectID := *(p.data["ObjectID"].(*uint32))
+				objectID := p.data["ObjectID"].(uint32)
 				definition, err := definitions.GetDefinitionForObjectID(objectID)
 				if err != nil {
 					log.Warning(err)
@@ -202,6 +202,7 @@ func newStateHolder(d *dispatcher.Dispatcher) *stateHolder {
 	go func() {
 		for {
 			dispatcherPacket := <-sh.connection.InChan
+
 			packet, err := newPacketFromDispatcher(dispatcherPacket)
 			if err != nil {
 				log.Warning(err)
@@ -292,5 +293,5 @@ func newDispatherPacketFromPacket(packet Packet) (interface{}, error) {
 	if packet.cmd == objectCmd || packet.cmd == objectCmdWithAck {
 		return dispatcher.Update{ObjectID: packet.definition.ObjectID, InstanceID: packet.instanceID, Data: packet.data}, nil
 	}
-	return nil, fmt.Errorf("Only packets with cmd == 0 or cmd == 2 can go out of the flight controller")
+	return nil, fmt.Errorf("Only packets with cmd == objectCmd or cmd == objectCmdWithAck can go out of the flight controller")
 }

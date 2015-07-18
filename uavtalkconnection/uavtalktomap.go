@@ -13,31 +13,59 @@ func readFromUAVTalk(field *common.FieldDefinition, reader *bytes.Reader) (inter
 	var result interface{}
 	switch typeInfo.Name {
 	case "int8":
-		result = new(uint8)
+		tmp := uint8(0)
+		if err := binary.Read(reader, binary.LittleEndian, &tmp); err != nil {
+			return nil, err
+		}
+		result = tmp
 	case "int16":
-		result = new(uint16)
+		tmp := uint16(0)
+		if err := binary.Read(reader, binary.LittleEndian, &tmp); err != nil {
+			return nil, err
+		}
+		result = tmp
 	case "int32":
-		result = new(int32)
+		tmp := int32(0)
+		if err := binary.Read(reader, binary.LittleEndian, &tmp); err != nil {
+			return nil, err
+		}
+		result = tmp
 	case "uint8":
-		result = new(uint8)
+		tmp := uint8(0)
+		if err := binary.Read(reader, binary.LittleEndian, &tmp); err != nil {
+			return nil, err
+		}
+		result = tmp
 	case "uint16":
-		result = new(uint16)
+		tmp := uint16(0)
+		if err := binary.Read(reader, binary.LittleEndian, &tmp); err != nil {
+			return nil, err
+		}
+		result = tmp
 	case "uint32":
-		result = new(uint32)
+		tmp := uint32(0)
+		if err := binary.Read(reader, binary.LittleEndian, &tmp); err != nil {
+			return nil, err
+		}
+		result = tmp
 	case "float":
-		result = new(float32)
+		tmp := float32(0)
+		if err := binary.Read(reader, binary.LittleEndian, &tmp); err != nil {
+			return nil, err
+		}
+		result = tmp
 	case "enum":
-		result = new(uint8)
+		tmp := uint8(0)
+		if err := binary.Read(reader, binary.LittleEndian, &tmp); err != nil {
+			return nil, err
+		}
+		result = tmp
 	default:
 		return nil, errors.New("Could not read from typeInfo.")
 	}
 
-	if err := binary.Read(reader, binary.LittleEndian, result); err != nil {
-		return nil, err
-	}
-
 	if typeInfo.Name == "enum" {
-		result = field.Options[uint8(*(result.(*uint8)))] // haha
+		result = field.Options[result.(uint8)] // haha
 	}
 	return result, nil
 }

@@ -76,7 +76,7 @@ type FieldsSlice []*FieldDefinition
 func (fields FieldsSlice) ByteLength() int {
 	length := 0
 	for _, field := range fields {
-		length += field.FieldTypeInfo.Size
+		length += field.FieldTypeInfo.Size * field.Elements
 	}
 	return length
 }
