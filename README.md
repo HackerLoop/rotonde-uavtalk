@@ -1,6 +1,4 @@
-# bridge
-
-## TL;DR
+# TL;DR
 
 Control drone as a device through JSON websocket API.
 
@@ -13,48 +11,50 @@ In an effort to get [Taulabs flight controller](http://taulabs.org/) usable from
 this "bridge" had been created. Its main purpose is to get the telemetry coming from
 the USB HID connection accessible as a bi-directional stream of JSON over a websocket.
 
-## Installation
+# Installation
 
-### Dependencies
+## Compilation
 
-- [Go](http://golang.org/)
-- `$GOPATH` properly set
-- [*go.hid*](https://github.com/GeertJohan/go.hid) as a dependency requires [HIDAPI
-library](https://github.com/signal11/hidapi) to be installed on your
-system.
-- [mapstructure](https://github.com/mitchellh/mapstructure)
+First you will need to install the [Golang](http://golang.org/) programming language (I'm working on go1.4.2, not tested others, let me know),
 
-### Compiling
-
-`go build`
-
-### Running
-
-A path to a folder containing commons definitions must be provided.
-You can easily find them by cloning [Taulabs](https://github.com/TauLabs/TauLabs) in the folder `shared/commondefinition`.
-
+Once setup, copy-paste in terminal:
+```bash
+$ go get github.com/openflylab/bridge && go get github.com/tools/godep
+$ cd $GOPATH/src/github.com/openflylab/bridge
+$ godep restore
+$ go build
 ```
-$ ./bridge -port 4242 commondefinition/
+
+If something went wrong, please post the resut to these commands in a new issue.
+
+## Running
+
+A path to a folder containing UAVObjects definitions must be provided.
+You can easily find them by cloning [Taulabs](https://github.com/TauLabs/TauLabs) in the folder `shared/UAVObjectdefinition`.
+
+```bash
+$ ./bridge -port 4242 [path to the cloned TauLabs folder]/shared/UAVObjectdefinition
 2015/06/21 14:43:07 Websocket server started on port 4242
 ```
 
 Port to listen on can be specified with `-port PORT`.
 
-## Overview
+# Overview
 
-Taulabs' flight controller communication is encapsulated with [UAVTalk](https://wiki.openpilot.org/display/WIKI/UAVTalk) protocol.
-Basically, it's a stream of structures carrying drone related data, packaged in a binary format before being sent over the wire.
-These structures are called *common*s and allows to communicate with
-activated modules on the flight controller.
+The Taulabs flight controller software uses a very handy modular architecture, each modules are abstracted from
+each others, and communicate by sending and receiving UAVObjects through a common bus.
+Each modules expose there functionalities and settings through one or more *UAVObject*s. Modules can modify other
+modules' UAVObjects to communicate with them.
 
-For example, to control a drone's orientation while flying, an common
-named `ManualControlCommand` can be sent to the flight controller. It
-will try to stabilize the drone by adjusting each engines power to match the received settings.
-Feel free to browse the exhaustive [list of commons.](https://gist.github.com/jhchabran/972ad7660398f478d990)
+TODO: insert graphic ?
+
+For example, connecting to the bus would give you the ability to update the [AltitudeHoldDesired](https://raw.githubusercontent.com/TauLabs/TauLabs/next/shared/uavobjectdefinition/altitudeholddesired.xml) UAVObject, that contains an `Altitude` field, and give you control over the desired drone altitude.
+
+Feel free to browse the exhaustive [list of UAVObjects.](https://gist.github.com/jhchabran/972ad7660398f478d990)
 
 The present project, referenced as the *Bridge* manages the USB
-connection to the drone and provides a websocket that streams commons
-expressed in JSON (they're originally expressed in XML).
+connection to the drone and provides a websocket that streams *UAVObject*s
+expressed in JSON (they're originally expressed in binary).
 
 So instead of sending something like this:
 
@@ -68,21 +68,21 @@ The following can be sent :
 {
   "type": "update"
     {
-      objectId: 12345,
-      instanceId: 0,
-      status: 'Connected',
-      txDataRate: 0,
-      rxDataRate: 0,
-      txFailures: 0,
-      rxFailures: 0,
-      txRetries: 0
+      "objectId": 12345,
+      "instanceId": 0,
+      "status": "Connected",
+      "txDataRate": 0,
+      "rxDataRate": 0,
+      "txFailures": 0,
+      "rxFailures": 0,
+      "txRetries": 0
     }
 }
 ```
 
 ## Using it
 
-In most case, the bridge is used through its a websocket (Rest interface is foreseen), by sending and receiving JSON objects.
+In most case, the bridge is used through its websocket (Rest interface is foreseen), by sending and receiving JSON objects.
 There a four types of json objects, "update", "req", "cmd" or "sub",
 which are detailed below.
 
@@ -99,13 +99,15 @@ These four json objects all share a common structure :
 
 ### Update
 
-The "update" object encapsulate an update of a common, which can be
+The "update" object encapsulate an update of a UAVObject, which can be
 found in two different contexts.
 
 - Received as a notification that a setting had been updated.
 - Sent to update a setting
 
-For example, the attitude module (which is responsible for attitude estimation, which means "what is the current angle of the drone") will periodically send the quaternion representing the current angle of the drone through the AttitudeActual object. But "update" object can also be used to set setting values for the desired module, for example, if you send a AttitudeSettings update object through websocket it will configure the PID algorithm that enables your drone to stay still in the air.
+For example, the attitude module (which is responsible for attitude estimation, which means "what is the current angle of the drone") will periodically send the quaternion representing the current angle of the drone through the AttitudeActual object.
+
+But "update" objects can also be used to set setting values for the desired module, for example, if you send a AttitudeSettings update object through websocket it will configure the PID algorithm that enables your drone to stay still in the air.
 
 ```json
 {
@@ -115,15 +117,15 @@ For example, the attitude module (which is responsible for attitude estimation, 
     "objectId": 1234, // displayed on start of bridge
     "instanceId": 0, // see UAVTalk documentation for info
     "data": {
-      // common data, as described by the definitions
+      // UAVObject data, as described by the definitions
     }
   }
 }
 ```
 
-# Req
+### Req
 
-Some commons are sent periodically, like the AttitudeActual that is sent every 100 ms, but others have different update policies, for example, the AttitudeSettings object is sent when changed, which means if you want its value you can either wait for it to change (which should not occure in normal condition), or just request it by sending a "req" object into the pipe, the response will be received as a "update" object.
+Some UAVObjects are sent periodically, like the AttitudeActual that is sent every 100 ms, but others have different update policies, for example, the AttitudeSettings object is sent when changed, which means if you want its value you can either wait for it to change (which should not occure in normal condition), or just request it by sending a "req" object into the pipe, the response will be received as a "update" object.
 
 ```json
 {
@@ -135,9 +137,9 @@ Some commons are sent periodically, like the AttitudeActual that is sent every 1
 }
 ```
 
-# Sub
+### Sub
 
-When you connect to the bridge nothing will be received except definitions, you have to subscribe to a given objectId in order to start receiving it.
+When you connect to the bridge nothing will be received except definitions, you have to subscribe to a given objectId in order to start receiving its updates.
 
 ```json
 {
@@ -148,16 +150,21 @@ When you connect to the bridge nothing will be received except definitions, you 
 }
 ```
 
-# Def
+### Def
 
-Each common has a set of fields and meta datas, when a common is available (like GPS), the module providing this feature sends its definition to the bridge which then dispatches a definition to the clients. Given that a common reflects an available feature of the drone, definitions give clients a clear overview of the available features.
+Each UAVObject has a set of fields and meta datas, when a UAVObject is available (like GPS), the module providing this feature sends its definition to the bridge which then dispatches a definition to the clients.
+Given that a UAVObject reflects an available feature of the drone, definitions give clients a clear overview of the available features.
 A client can send definitions to the bridge, exposing the feature that it provides.
 
 ```json
 {
   "type": "def",
   "payload": {
-    // meta datas from common, at first will be tightly linked to definitions found in the xml files
+    // meta datas from UAVObject, at first will be tightly linked to definitions found in the xml files
   }
 }
 ```
+
+# Contribution
+
+Very welcome.
