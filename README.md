@@ -191,11 +191,12 @@ When you connect to the bridge, it will start be sending you all the currently a
 
 # Tutorial #1
 
-Let's say we want to make a quick monitoring app that shows a 3d representation of our drone in air.
-We'd need to have the current 3d angle of our drone, the good news is that we actually have UAVObject just for that !
-It's called [AttitudeActual](https://raw.githubusercontent.com/TauLabs/TauLabs/next/shared/uavobjectdefinition/attitudeactual.xml), and the 3d angle is given in two forms, as Euler angle with the Yaw, Pitch and Roll fields, and as a quaternion with the q1, q2, q3, q4 fields.
+Let's say we want to make a quick monitoring app that shows a 3D representation of our drone in air.
+We'd need to have the current 3d angle of our drone. The good news is that we actually have a UAVObject just for that !
+It's called [AttitudeActual](https://raw.githubusercontent.com/TauLabs/TauLabs/next/shared/uavobjectdefinition/attitudeactual.xml), and the 3D angle is given in two forms, as Euler angle with the Yaw, Pitch and Roll fields, and as a quaternion with the q1, q2, q3 and q4 fields.
 
-so let's start by connecting by the websocket, which will start by sending us definitions one by one, once we reach the AttitudeActual definition:
+so let's start by connecting to the websocket, which will start by sending us all available definitions one by one.
+Once we reach the AttitudeActual definition:
 
 ```json
 {
@@ -330,9 +331,9 @@ so let's start by connecting by the websocket, which will start by sending us de
 ```
 
 Yes, there is a lot on infos there, a big part of it will be stripped in futur versions.
-Anyway the one that interests us is the `id` field, 869979622. This is the id we need to subscribe to this uavobject.
+Anyway the one field that interests us is the `id` field, 869979622. This is the id we want to subscribe to.
 
-Let's go on and subscribe, create a json paket with the following format:
+Let's go on and subscribe; create a json paket with the following format:
 
 ```json
 {
@@ -371,9 +372,9 @@ Try to unsubscribe from this packet.
 
 # Contribution
 
-We need people to develop new modules, that provide crazy UAVObjects !
-The idea is simple, if you look at the [VelocityActual](https://raw.githubusercontent.com/TauLabs/TauLabs/next/shared/uavobjectdefinition/velocityactual.xml) UAVObject which provides the velocity as seen through the various sensors of the hardware, which are not necessarily perfectly precise.
-What if you could bypass this estimation when you a close enough to the ground to have optical based velocity estimation, which is much more precise ? Then you'd a much more precise drone !
+We need people to develop new modules that provide crazy UAVObjects !
+The idea is simple, first have look at the [VelocityActual](https://raw.githubusercontent.com/TauLabs/TauLabs/next/shared/uavobjectdefinition/velocityactual.xml) UAVObject which provides the velocity as seen through the various sensors of the hardware, which are not necessarily perfectly precise.
+What if you could have a better estimation, like when you are close enough to the ground to have optical based velocity estimation, which is much more precise ? Then you'd a much more precise drone !
 
 So that's the whole point of the modular architecture that Taulabs offers, some modules work perfectly on the flight controller, but others might require much more processing power, or an internet connection, these one need be on an actual computer, some other modules might even require to be in the cloud.
 The modular architecture enables to make all this transparent, just declare UAVObjects, and your are part of the whole system.
