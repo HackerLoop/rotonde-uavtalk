@@ -120,7 +120,7 @@ For example, the attitude module (which is responsible for attitude estimation, 
 
 But "update" objects can also be used to set setting values for the desired module, for example, if you send a [AttitudeSettings](https://raw.githubusercontent.com/TauLabs/TauLabs/next/shared/uavobjectdefinition/attitudesettings.xml) update object through websocket it will configure the PID algorithm that enables your drone to stay still in the air.
 
-```json
+```
 {
   "type": "update",
   "payload": {
