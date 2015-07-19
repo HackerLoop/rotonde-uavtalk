@@ -5,7 +5,7 @@ Control drone as a device through JSON websocket API.
 # Intro
 
 This document describes the openskybot bridge and its underlying mecanism, if you just want to control the drone,
-head to [Drone.js](https://github.com/openflylab/drone.js) (coming soon) which provides a much more user-friendly interface.
+head to [skybot-client.js](https://github.com/openskybot/skybot-client.js) (coming soon) which provides a much more user-friendly interface.
 
 The main idea of this project is give easy access to features like "take me to this coordinates", just like
 you have access to a "print this document" feature on most computers.

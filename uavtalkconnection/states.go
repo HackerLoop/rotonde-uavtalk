@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/openflylab/bridge/common"
-	"github.com/openflylab/bridge/dispatcher"
+	"github.com/openskybot/skybot-router/common"
+	"github.com/openskybot/skybot-router/dispatcher"
 )
 
 /*

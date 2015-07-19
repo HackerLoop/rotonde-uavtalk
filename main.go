@@ -7,9 +7,9 @@ import (
 	"runtime"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/openflylab/bridge/dispatcher"
-	"github.com/openflylab/bridge/uavtalkconnection"
-	"github.com/openflylab/bridge/websocketconnection"
+	"github.com/openskybot/skybot-router/dispatcher"
+	"github.com/openskybot/skybot-router/uavtalkconnection"
+	"github.com/openskybot/skybot-router/websocketconnection"
 )
 
 func main() {

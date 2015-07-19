@@ -11,9 +11,9 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/openflylab/bridge/common"
-	"github.com/openflylab/bridge/dispatcher"
-	"github.com/openflylab/bridge/utils"
+	"github.com/openskybot/skybot-router/common"
+	"github.com/openskybot/skybot-router/dispatcher"
+	"github.com/openskybot/skybot-router/utils"
 )
 
 var definitions common.Definitions

@@ -4,7 +4,7 @@ import (
 	"reflect"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/openflylab/bridge/common"
+	"github.com/openskybot/skybot-router/common"
 )
 
 // ChanQueueLength buffered channl length

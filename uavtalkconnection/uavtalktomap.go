@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/openflylab/bridge/common"
+	"github.com/openskybot/skybot-router/common"
 )
 
 func readFromUAVTalk(field *common.FieldDefinition, reader *bytes.Reader) (interface{}, error) {

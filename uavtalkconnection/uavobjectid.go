@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/openflylab/bridge/common"
+	"github.com/openskybot/skybot-router/common"
 
 	"code.google.com/p/go-charset/charset"
 	_ "code.google.com/p/go-charset/data" // can't be in main, could it ? (golint spawns a warning)

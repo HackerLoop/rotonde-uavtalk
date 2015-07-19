@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/openflylab/bridge/common"
+	"github.com/openskybot/skybot-router/common"
 )
 
 func valueForEnumString(field *common.FieldDefinition, option string) (uint8, error) {

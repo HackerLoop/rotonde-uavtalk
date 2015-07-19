@@ -9,8 +9,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/websocket"
 	"github.com/mitchellh/mapstructure"
-	"github.com/openflylab/bridge/common"
-	"github.com/openflylab/bridge/dispatcher"
+	"github.com/openskybot/skybot-router/common"
+	"github.com/openskybot/skybot-router/dispatcher"
 )
 
 // Packet is the JSON representation of an UAVTalk package, the Data field contains the common JSON representation.
