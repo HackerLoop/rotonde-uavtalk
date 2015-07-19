@@ -75,7 +75,7 @@ So instead of sending something like this:
 
 The following can be sent :
 
-```json
+```
 {
   "type": "update"
     {
@@ -99,7 +99,7 @@ which are detailed below.
 
 These four json objects all share a common structure :
 
-```json
+```
 {
   type: "", // "update", "req", "cmd", "sub" or "unsub"
   payload: {
@@ -120,7 +120,7 @@ For example, the attitude module (which is responsible for attitude estimation, 
 
 But "update" objects can also be used to set setting values for the desired module, for example, if you send a [AttitudeSettings](https://raw.githubusercontent.com/TauLabs/TauLabs/next/shared/uavobjectdefinition/attitudesettings.xml) update object through websocket it will configure the PID algorithm that enables your drone to stay still in the air.
 
-```json
+```
 {
   "type": "update",
   "payload": {
@@ -138,7 +138,7 @@ But "update" objects can also be used to set setting values for the desired modu
 
 Some UAVObjects are sent periodically, like the AttitudeActual that is sent every 100 ms, but others have different update policies, for example, the AttitudeSettings object is sent when changed, which means if you want its value you can either wait for it to change (which should not occure in normal condition), or just request it by sending a "req" object into the pipe, the response will be received as a "update" object.
 
-```json
+```
 {
   "type": "req",
   "payload": {
@@ -152,7 +152,7 @@ Some UAVObjects are sent periodically, like the AttitudeActual that is sent ever
 
 When you connect to the bridge nothing will be received except definitions, you have to subscribe to a given objectId in order to start receiving its updates.
 
-```json
+```
 {
   "type": "sub",
   "payload": {
@@ -163,7 +163,7 @@ When you connect to the bridge nothing will be received except definitions, you 
 
 and you can unsubscribe from this objectId with:
 
-```json
+```
 {
   "type": "unsub",
   "payload": {
@@ -180,7 +180,7 @@ A client can send definitions to the bridge, exposing the feature that it provid
 
 When you connect to the bridge, it will start be sending you all the currently available definitions, new definitions can still become available at any time.
 
-```json
+```
 {
   "type": "def",
   "payload": {
@@ -198,7 +198,7 @@ It's called [AttitudeActual](https://raw.githubusercontent.com/TauLabs/TauLabs/n
 so let's start by connecting to the websocket, which will start by sending us all available definitions one by one.
 Once we reach the AttitudeActual definition:
 
-```json
+```
 {
    "type":"def",
    "payload":{
@@ -335,7 +335,7 @@ Anyway the one field that interests us is the `id` field, 869979622. This is the
 
 Let's go on and subscribe; create a json paket with the following format:
 
-```json
+```
 {
     "type": "sub",
     "payload": {
@@ -347,7 +347,7 @@ Let's go on and subscribe; create a json paket with the following format:
 send it to the dispatcher and it will start sending you the AttitudeActual object periodically. yay.
 It looks like this:
 
-```json
+```
 {
    "type":"update",
    "payload":{
@@ -378,3 +378,6 @@ What if you could have a better estimation, like when you are close enough to th
 
 So that's the whole point of the modular architecture that Taulabs offers, some modules work perfectly on the flight controller, but others might require much more processing power, or an internet connection, these one need be on an actual computer, some other modules might even require to be in the cloud.
 The modular architecture provides a clean abstraction that makes all this possible, just connect to the bridge, manipulate UAVObjects, and your are part of the whole system.
+
+#Licence
+[Apache licence 2.0 ](https://github.com/openskybot/skybot-router/blob/master/licence.md)
