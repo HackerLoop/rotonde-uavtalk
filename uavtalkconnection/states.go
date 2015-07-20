@@ -149,7 +149,7 @@ func (s *noSession) out(p Packet) bool {
 				// partial and bad session recovery
 				log.Info("got sessionID ", sessionID)
 				if s.stateHolder.sessionID != 0 && s.stateHolder.sessionID == sessionID {
-					log.Info("Recovering", s.stateHolder.sessionID)
+					log.Info("Recovering ", s.stateHolder.sessionID)
 					s.stateHolder.setState(&stream{})
 					return false
 				}

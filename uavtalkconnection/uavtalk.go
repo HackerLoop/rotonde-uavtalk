@@ -278,7 +278,6 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 
 	for {
 		start(sh)
-		time.Sleep(2 * time.Second)
 	}
 }
 
@@ -295,7 +294,7 @@ func start(sh *stateHolder) {
 		link, err = newUSBLink() //newTCPLink()
 		if err != nil {
 			log.Warning(err)
-			time.Sleep(2 * time.Second)
+			time.Sleep(1 * time.Second)
 			continue
 		}
 		break
