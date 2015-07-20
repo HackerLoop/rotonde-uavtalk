@@ -283,7 +283,7 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 
 func recoverChanClosed() {
 	if e := recover(); e != nil {
-		fmt.Println("Recovered in start ", e)
+		log.Info("Recovered in start ", e)
 	}
 }
 

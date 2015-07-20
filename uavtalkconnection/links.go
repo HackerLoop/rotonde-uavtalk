@@ -1,6 +1,7 @@
 package uavtalkconnection
 
 import (
+	"errors"
 	"io"
 	"net"
 
@@ -25,7 +26,37 @@ type usbLink struct {
 
 var _ linker = (usbLink{})
 
+var deviceIDs = []struct {
+	vendorID  uint16
+	productID uint16
+}{
+	{vendorID: 0x20a0, productID: 0x415b}, // cc3d, flyingf3, flyingf4, sparky2
+	{vendorID: 0x20a0, productID: 0x41d0}, // sparky
+	{vendorID: 0x20a0, productID: 0x415c}, // taulink, does it mean anything to put it here ? pipxtreme
+	{vendorID: 0x20a0, productID: 0x4235}, // colibri
+	{vendorID: 0x0fda, productID: 0x0100}, // quanton
+}
+
 func newUSBLink() (linker, error) {
+	devices, err := hid.Enumerate(0x00, 0x00)
+	if err != nil {
+		return nil, err
+	}
+
+	var deviceIDIndex = -1
+Loop:
+	for _, device := range devices {
+		for index, deviceID := range deviceIDs {
+			if device.VendorId == deviceID.vendorID && device.ProductId == deviceID.productID {
+				deviceIDIndex = index
+				break Loop
+			}
+		}
+	}
+	if deviceIDIndex == -1 {
+		return nil, errors.New("No suitable device found")
+	}
+
 	cc, err := hid.Open(0x20a0, 0x41d0, "")
 	if err != nil {
 		return nil, err

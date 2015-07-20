@@ -7,7 +7,7 @@ import (
 	"github.com/openskybot/skybot-router/common"
 )
 
-// ChanQueueLength buffered channl length
+// ChanQueueLength buffered channel length
 const ChanQueueLength = 100
 
 // Object native representation of a UAVPacket, just a map
@@ -53,7 +53,7 @@ func NewConnection() *Connection {
 	return connection
 }
 
-// Close closes the connection, possible threading issues...
+// Close closes the connection, possible issues...
 func (connection *Connection) Close() {
 	close(connection.OutChan)
 }
@@ -86,7 +86,7 @@ func NewDispatcher() *Dispatcher {
 	dispatcher := new(Dispatcher)
 	dispatcher.connections = make([]*Connection, 0, 100)
 	dispatcher.cases = make([]reflect.SelectCase, 0, 100)
-	dispatcher.connectionChan = make(chan *Connection, 10)
+	dispatcher.connectionChan = make(chan *Connection, 10) // TODO try unbuffered chan
 
 	// first case is for the connectionChan
 	dispatcher.cases = append(dispatcher.cases, reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(dispatcher.connectionChan)})
