@@ -2,6 +2,7 @@ package uavtalkconnection
 
 import (
 	"fmt"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/openskybot/skybot-router/common"
@@ -20,8 +21,9 @@ type stateHolder struct {
 	inChan     chan Packet
 	outChan    chan Packet
 
-	state     state
-	keepAlive bool
+	state             state
+	autoAckAndPersist bool
+	sessionID         uint16
 }
 
 // TODO: make thread safe.
@@ -82,9 +84,10 @@ const noSessionStateFetchObjects = 3
 type noSession struct {
 	stateHolder *stateHolder
 
-	currentSessionStateCreationStep int
-	currentObjectID                 uint8
-	numberOfObjects                 uint8
+	sessionID uint16
+
+	currentObjectID uint8
+	numberOfObjects uint8
 
 	sessionManaging *common.Definition
 }
@@ -92,7 +95,7 @@ type noSession struct {
 func (s *noSession) start() {
 	log.Info("Started noSession state")
 
-	s.currentSessionStateCreationStep = noSessionStateFirstSend
+	s.stateHolder.autoAckAndPersist = false
 
 	var err error
 	s.sessionManaging, err = definitions.GetDefinitionForName("SessionManaging")
@@ -128,16 +131,28 @@ func (s *noSession) out(p Packet) bool {
 				}
 
 				if s.currentObjectID >= s.numberOfObjects {
+					s.stateHolder.sessionID = s.sessionID
+					s.stateHolder.autoAckAndPersist = true
 					s.stateHolder.setState(&stream{})
-					s.stateHolder.keepAlive = true
 					return false
 				}
 
-				sessionManagingPacket := createSessionManagingPacket(4224, s.currentObjectID)
+				if s.currentObjectID == 0 {
+					s.sessionID = uint16(time.Now().Unix())
+					log.Info("Creating session ", s.sessionID)
+				}
+				sessionManagingPacket := createSessionManagingPacket(s.sessionID, s.currentObjectID)
 				s.currentObjectID++
-				s.currentSessionStateCreationStep = noSessionStateFetchObjects
 				s.stateHolder.inChan <- sessionManagingPacket
 			} else {
+				sessionID := p.data["SessionID"].(uint16)
+				// partial and bad session recovery
+				log.Info("got sessionID ", sessionID)
+				if s.stateHolder.sessionID != 0 && s.stateHolder.sessionID == sessionID {
+					log.Info("Recovering", s.stateHolder.sessionID)
+					s.stateHolder.setState(&stream{})
+					return false
+				}
 				sessionManagingPacket := createSessionManagingPacket(0, 0)
 				s.stateHolder.inChan <- sessionManagingPacket
 			}
@@ -185,7 +200,7 @@ func newStateHolder(d *dispatcher.Dispatcher) *stateHolder {
 		for {
 			packet := <-sh.outChan
 
-			if sh.keepAlive == true {
+			if sh.autoAckAndPersist == true {
 				if packet.cmd == objectCmdWithAck {
 					sh.inChan <- createPacketAck(packet.definition)
 				} else if packet.cmd == objectAck {
@@ -251,7 +266,7 @@ func createSessionManagingRequest() Packet {
 	return *packet
 }
 
-func createSessionManagingPacket(sessionID uint32, objectOfInterestIndex uint8) Packet {
+func createSessionManagingPacket(sessionID uint16, objectOfInterestIndex uint8) Packet {
 	definition, err := definitions.GetDefinitionForName("SessionManaging")
 	if err != nil {
 		log.Fatal(err)
