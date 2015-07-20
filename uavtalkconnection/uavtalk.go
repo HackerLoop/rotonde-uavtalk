@@ -9,6 +9,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/openskybot/skybot-router/common"
@@ -275,20 +276,44 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 
 	sh := newStateHolder(d)
 
-	link, err := newUSBLink() //newTCPLink()
-	if err != nil {
-		log.Fatal(err)
+	for {
+		start(sh)
+		time.Sleep(2 * time.Second)
 	}
-	defer link.Close()
+}
 
+func recoverChanClosed() {
+	if e := recover(); e != nil {
+		fmt.Println("Recovered in start ", e)
+	}
+}
+
+func start(sh *stateHolder) {
+	var link linker
+	var err error
+	for {
+		link, err = newUSBLink() //newTCPLink()
+		if err != nil {
+			log.Warning(err)
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		break
+	}
+
+	linkError := make(chan error)
+	defer close(linkError)
+	defer link.Close()
 	// From USB
 	go func() {
+		defer recoverChanClosed()
 		packet := make([]byte, maxHIDFrameSize)
 		buffer := make([]byte, 0, 4096)
 		for {
 			n, err := link.Read(packet)
 			if err != nil {
-				log.Fatal(err)
+				linkError <- err
+				return
 			}
 			if n == 0 {
 				continue
@@ -321,6 +346,7 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 
 	// To Controller
 	go func() {
+		defer recoverChanClosed()
 		for {
 			packet := <-sh.inChan
 
@@ -332,10 +358,13 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 
 			_, err = link.Write(binaryPacket)
 			if err != nil {
-				log.Fatal(err)
+				linkError <- err
+				return
 			}
 		}
 	}()
 
-	select {}
+	err = <-linkError
+	log.Warning(err)
+	sh.setState(&notConnected{stateHolder: sh})
 }

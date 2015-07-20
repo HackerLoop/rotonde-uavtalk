@@ -24,6 +24,7 @@ type stateHolder struct {
 	keepAlive bool
 }
 
+// TODO: make thread safe.
 func (sh *stateHolder) setState(s state) {
 	sh.state = s
 	sh.state.start()
