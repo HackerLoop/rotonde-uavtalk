@@ -123,22 +123,29 @@ func (dispatcher *Dispatcher) removeConnectionAt(index int) {
 }
 
 func (dispatcher *Dispatcher) dispatchUpdate(from int, update *Update) {
+	fromConnection := dispatcher.connections[from]
+	fromOwner := false
+	if _, err := fromConnection.definitions.GetDefinitionForObjectID(update.ObjectID); err == nil {
+		fromOwner = true
+	}
+mainLoop:
 	for i, connection := range dispatcher.connections {
 		if i == from {
 			continue
 		}
-		subscribed := false
-		for _, objectID := range connection.subscriptions {
-			if objectID == update.ObjectID {
-				subscribed = true
+
+		if fromOwner == true {
+			for _, objectID := range connection.subscriptions {
+				if objectID == update.ObjectID {
+					connection.InChan <- *update
+					continue mainLoop
+				}
+			}
+		} else {
+			if _, err := connection.definitions.GetDefinitionForObjectID(update.ObjectID); err == nil {
+				connection.InChan <- *update
 			}
 		}
-		if subscribed == false {
-			if _, err := connection.definitions.GetDefinitionForObjectID(update.ObjectID); err != nil {
-				continue
-			}
-		}
-		connection.InChan <- *update
 	}
 }
 
