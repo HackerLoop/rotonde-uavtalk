@@ -1,59 +1,74 @@
-# TL;DR
+# skybot-router
 
 Control drone as a device through JSON websocket API.
 
 # Intro
 
-This document describes the openskybot bridge and its underlying mecanism, if you just want to control the drone,
-head to [skybot-client.js](https://github.com/openskybot/skybot-client.js) (coming soon) which provides a much more user-friendly interface.
+This document describes the openskybot router and its underlying mechanisms, 
+so if you just want to control the drone, head to [skybot-client.js](https://github.com/openskybot/skybot-client.js) 
+(coming soon) which provides a much more user-friendly interface.
 
-The main idea of this project is give easy access to features like "take me to this coordinates", just like
-you have access to a "print this document" feature on most computers.
-So we thought that it would be nice if we could plug a computer to a drone frame, and just have it flying in a snap,
-so we could just focus on what can be done with a computer once it's flying.
+The main goal of the [Skybot project](https://github.com/openskybot) is to 
+make features like *take my drone to this coordinates* as easy as printing some document. 
+In order to achieve that, we basically attached a computer to a drone frame and provide
+software abstracting all the details, allowing people to focus on what
+to do with flying computers. 
 
-Having a machine flying, whether it is a quad rotor or a plane, requires strong mathematical knowledge in a piece of software called a `Flight controller`. This project relies on [Taulabs](http://taulabs.org/) to fulfill this task, and thus requires an actual piece of hardware to run the flight controller on, just connect it to your embedded computer by USB, like any printer or mouse.
+Making a machine fly requires physics and mathematical knowledge, which
+is usually abstracted away in a piece of software called a **flight
+controller**. Therefore this project relies on
+[Taulabs](http://taulabs.org) and requires some compatible hardware to
+run it on, which is then connected by usb on an embedded computer.
 
-# Setup (assuming you are on a unix machine, tested on OSX and linux)
+# Setup 
+
+## Requirements 
+
+- some unix os (tested with success on Linux and OSX so far)
+- [Golang](https://golang.org/) (1.4.2, please tell us if you got it
+  working on previous versions, we didn't test them yet)
+- [Godep](http://godoc.org/github.com/tools/godep)
 
 ## Compilation
 
-First you will need to install the [Golang](http://golang.org/) programming language (I'm working on go1.4.2, not tested others, let me know),
+Assuming Golang had been installed, if it's not already done a workspace
+can be set with  
 
-Once installed, copy-paste in terminal, replace [ choose_workspace_directory ] by your desired path of installation:
 ```bash
-export GOPATH=[ choose_workspace_directory ]
+export GOPATH=$HOME/go
 mkdir $GOPATH
 go get github.com/openflylab/bridge && go get github.com/tools/godep
-cd $GOPATH/src/github.com/openflylab/bridge
+cd $GOPATH/src/github.com/openskybot/skybot-router
 godep restore
 go build
 ```
 
-You now have an executable called `bridge` in src/github.com/openflylab/bridge from the installation path,
-just head to the next section to know how to launch it.
+`go build` will compile an executable called `bridge` in the project
+folder (`$GOPATH/src/openskybot/skybot-router`).
 
-If something went wrong, please post the resut to these commands in a new issue.
+If something goes wrong during compilation, please [open up an
+issue](https://github.com/openskybot/skybot-router/issues) with your
+os/distribution infos and compilation output. 
 
 ## Running
 
-A path to a folder containing UAVObjects definitions must be provided.
-You can easily find them by cloning [Taulabs](https://github.com/TauLabs/TauLabs) in the folder `shared/UAVObjectdefinition`.
+In order to run properly, it requires some definitions provided by
+Taulabs, referred as UAVObjects definitions, found in [Taulabs repository](https://github.com/TauLabs/TauLabs/tree/next/shared/uavobjectdefinition)
 
-Execute following commands in the same directory as the `bridge` executable previously created,
-replace [ path_to_the_cloned_TauLabs_folder ] with the place you wish to clone Taulabs sources.
 ```bash
-export TAULABS=[ path_to_the_cloned_TauLabs_folder ]
-git clone https://github.com/TauLabs/TauLabs.git $TAULABS
-./bridge $TAULABS/shared/UAVObjectdefinition
+export TAULABS_DIR=$HOME/Taulabs
+git clone https://github.com/TauLabs/TauLabs.git $TAULABS_DIR
+./bridge $TAULABS_DIR/shared/UAVObjectdefinition
 ```
 
-Default port is 4224, port to listen on can be specified with `-port PORT`.
+It will open the connection to the device through usb and will listen
+with a websocket on port 4224 by default. Port can be specified through
+the `-port PORT` option.
 
 # Overview
 
 The Taulabs flight controller software uses a very handy modular architecture, each modules are abstracted from
-each others, and communicate by sending and receiving UAVObjects through a common bus.
+each others and communicate by sending and receiving UAVObjects through a common bus.
 Each module exposes hist functionalities and settings through one or more *UAVObject*s. Modules can modify other
 modules' UAVObjects to communicate with each other.
 
@@ -63,9 +78,9 @@ For example, connecting to the bus would give you the ability to update the [Alt
 
 Feel free to browse the exhaustive [list of UAVObjects.](https://gist.github.com/jhchabran/972ad7660398f478d990)
 
-The present project, referenced as the *Bridge* manages the USB
+The present project, referenced as  *skybot-router* manages the USB
 connection to the drone and provides a websocket that streams *UAVObject*s
-expressed in JSON (they're originally expressed in binary).
+expressed in JSON (instead of plain binary data)
 
 So instead of sending something like this:
 
