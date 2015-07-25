@@ -291,7 +291,7 @@ func start(sh *stateHolder) {
 	var link linker
 	var err error
 	for {
-		link, err = newUSBLink() //newTCPLink()
+		link, err = newTCPLink() // newUSBLink()
 		if err != nil {
 			log.Warning(err)
 			time.Sleep(1 * time.Second)
@@ -300,10 +300,15 @@ func start(sh *stateHolder) {
 		break
 	}
 
+	r, err := newUAVTalkRelayChan(9001)
+	if err != nil {
+		log.Warning(err)
+	}
+
 	linkError := make(chan error)
 	defer close(linkError)
 	defer link.Close()
-	// From USB
+	// From Controller
 	go func() {
 		defer recoverChanClosed()
 		packet := make([]byte, maxHIDFrameSize)
@@ -318,6 +323,9 @@ func start(sh *stateHolder) {
 				continue
 			}
 
+			if r.connected {
+				r.outChan <- packet[0:n]
+			}
 			buffer = append(buffer, packet[0:n]...)
 
 			for {
@@ -347,12 +355,15 @@ func start(sh *stateHolder) {
 	go func() {
 		defer recoverChanClosed()
 		for {
-			packet := <-sh.inChan
-
-			binaryPacket, err := packet.toBinary()
-			if err != nil {
-				log.Warning(err)
-				continue
+			var binaryPacket []byte
+			select {
+			case packet := <-sh.inChan:
+				binaryPacket, err = packet.toBinary()
+				if err != nil {
+					log.Warning(err)
+					continue
+				}
+			case binaryPacket = <-r.inChan:
 			}
 
 			_, err = link.Write(binaryPacket)
