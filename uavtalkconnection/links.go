@@ -57,7 +57,8 @@ Loop:
 		return nil, errors.New("No suitable device found")
 	}
 
-	cc, err := hid.Open(0x20a0, 0x41d0, "")
+	device := deviceIDs[deviceIDIndex]
+	cc, err := hid.Open(device.vendorID, device.productID, "")
 	if err != nil {
 		return nil, err
 	}

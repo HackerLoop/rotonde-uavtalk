@@ -18,6 +18,7 @@ import (
 )
 
 var definitions common.Definitions
+var maxUAVObjectLength int
 
 // newDefinitions loads all xml files from a directory
 func newDefinitions(dir string) (common.Definitions, error) {
@@ -184,32 +185,43 @@ func byteArrayToInt16(b []byte) uint16 {
 	return (uint16(b[1]) << 8) | (uint16(b[0]))
 }
 
-func bufferComplete(buffer []byte) (bool, int, int, error) {
-	offset := -1
-	for i := 0; i < len(buffer); i++ {
-		if buffer[i] == 0x3c {
-			offset = i
-			break
+func packetComplete(buffer []byte) (bool, int, int, error) {
+	start := 0
+	for {
+		offset := -1
+		for i := start; i < len(buffer); i++ {
+			if buffer[i] == 0x3c {
+				offset = i
+				break
+			}
 		}
+
+		if offset < 0 {
+			return false, 0, 0, nil
+		}
+
+		length := byteArrayToInt16(buffer[offset+2 : offset+4])
+
+		if int(length) > maxUAVObjectLength+shortHeaderLength+2 {
+			if offset+1 >= len(buffer) {
+				return false, offset, offset + 1, fmt.Errorf("Wrong length, skipping this 0x3c")
+			}
+			start = offset + 1
+			continue
+		}
+
+		if int(length)+1 > len(buffer)-offset {
+			return false, 0, 0, nil
+		}
+
+		cks := buffer[offset+int(length)]
+
+		if cks != computeCrc8(0, buffer[offset:offset+int(length)]) {
+			return false, offset, offset + int(length) + 1, fmt.Errorf("Wrong crc8")
+		}
+
+		return true, offset, offset + int(length) + 1, nil
 	}
-
-	if offset < 0 {
-		return false, 0, 0, nil
-	}
-
-	length := byteArrayToInt16(buffer[offset+2 : offset+4])
-
-	if int(length)+1 > len(buffer)-offset {
-		return false, 0, 0, nil
-	}
-
-	cks := buffer[offset+int(length)]
-
-	if cks != computeCrc8(0, buffer[offset:offset+int(length)]) {
-		return false, offset, offset + int(length) + 1, fmt.Errorf("Wrong crc8 !!!!")
-	}
-
-	return true, offset, offset + int(length) + 1, nil
 }
 
 func newPacketFromBinary(binaryPacket []byte) (*Packet, error) {
@@ -272,7 +284,14 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 	}
 	definitions = defs
 
-	log.Infof("%d xml files loaded\n", len(definitions))
+	for _, definition := range definitions {
+		tmp := definition.Fields.ByteLength()
+		if tmp > maxUAVObjectLength {
+			maxUAVObjectLength = tmp
+		}
+	}
+
+	log.Infof("%d xml files loaded, maxUAVObjectLength: %d\n", len(definitions), maxUAVObjectLength)
 
 	err = initUAVTalkRelay(9001)
 	if err != nil {
@@ -332,7 +351,7 @@ func start(sh *stateHolder) {
 			buffer = append(buffer, packet[0:n]...)
 
 			for {
-				ok, from, to, err := bufferComplete(buffer)
+				ok, from, to, err := packetComplete(buffer)
 				if err == nil {
 					if ok != true {
 						break
@@ -342,6 +361,7 @@ func start(sh *stateHolder) {
 						sh.outChan <- *uavTalkObject
 					} else {
 						log.Warning(err)
+						utils.PrintHex(buffer[from:to], to-from)
 					}
 				} else {
 					// the packet is complete but its integrity is seriously questionned, we go through so we can strip it from buffer
