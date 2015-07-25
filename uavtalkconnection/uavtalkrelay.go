@@ -10,30 +10,43 @@ import (
 
 var listenSocket net.Conn
 
-var relay struct {
+var relay = struct {
 	inChan  chan []byte
 	outChan chan []byte
+
+	startStopChan chan bool
+	stream        bool
 
 	connected bool
 }{}
 
-func initUAVTalkRelay(port int) (error) {
-	r.inChan = make(chan []byte, 100)
-	r.outChan = make(chan []byte, 100)
+func startRelayStream() {
+	relay.startStopChan <- true
+}
 
-	r.ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+func stopRelayStream() {
+	relay.startStopChan <- false
+}
+
+func initUAVTalkRelay(port int) error {
+	relay.inChan = make(chan []byte, 100)
+	relay.outChan = make(chan []byte, 100)
+
+	relay.startStopChan = make(chan bool, 1)
+
+	listenSocket, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	log.Infof("Relay listening %d", port)
 	go func() {
 		for {
-			conn, err := r.ln.Accept()
+			conn, err := listenSocket.Accept()
 			if err != nil {
 				log.Warning(err)
 				continue
 			}
-			r.connected = true
+			relay.connected = true
 			log.Info("UTalkRelay connection started")
 
 			errorChan := make(chan bool)
@@ -51,7 +64,15 @@ func initUAVTalkRelay(port int) (error) {
 						log.Warning(err)
 						return
 					}
-					r.inChan <- buffer[0:n]
+
+					select {
+					case relay.stream = <-relay.startStopChan:
+					default:
+					}
+
+					if relay.stream {
+						relay.inChan <- buffer[0:n]
+					}
 				}
 			}(wg)
 
@@ -61,7 +82,7 @@ func initUAVTalkRelay(port int) (error) {
 				defer conn.Close()
 				for {
 					select {
-					case buffer := <-r.outChan:
+					case buffer := <-relay.outChan:
 						_, err := conn.Write(buffer)
 						if err != nil {
 							log.Warning(err)
@@ -76,9 +97,9 @@ func initUAVTalkRelay(port int) (error) {
 
 			wg.Wait()
 			log.Info("UTalkRelay connection stopped")
-			r.connected = false
+			relay.connected = false
 		}
 	}()
 
-	return r, nil
+	return nil
 }

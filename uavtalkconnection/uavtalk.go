@@ -274,6 +274,11 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 
 	log.Infof("%d xml files loaded\n", len(definitions))
 
+	err = initUAVTalkRelay(9001)
+	if err != nil {
+		log.Warning(err)
+	}
+
 	sh := newStateHolder(d)
 
 	for {
@@ -291,7 +296,7 @@ func start(sh *stateHolder) {
 	var link linker
 	var err error
 	for {
-		link, err = newUSBLink()
+		link, err = newTCPLink() // newUSBLink()
 		if err != nil {
 			log.Warning(err)
 			time.Sleep(1 * time.Second)
@@ -300,14 +305,12 @@ func start(sh *stateHolder) {
 		break
 	}
 
-	r, err := newUAVTalkRelayChan(9001)
-	if err != nil {
-		log.Warning(err)
-	}
+	startRelayStream()
 
 	linkError := make(chan error)
 	defer close(linkError)
 	defer link.Close()
+	defer stopRelayStream()
 	// From Controller
 	go func() {
 		defer recoverChanClosed("Out")
@@ -323,8 +326,8 @@ func start(sh *stateHolder) {
 				continue
 			}
 
-			if r.connected {
-				r.outChan <- packet[0:n]
+			if relay.connected {
+				relay.outChan <- packet[0:n]
 			}
 			buffer = append(buffer, packet[0:n]...)
 
@@ -355,7 +358,7 @@ func start(sh *stateHolder) {
 	go func() {
 		defer recoverChanClosed("In")
 		for {
-			var binaryPacket []byte = nil
+			var binaryPacket []byte
 			select {
 			case packet := <-sh.inChan:
 				binaryPacket, err = packet.toBinary()
@@ -363,7 +366,7 @@ func start(sh *stateHolder) {
 					log.Warning(err)
 					continue
 				}
-			case binaryPacket = <-r.inChan:
+			case binaryPacket = <-relay.inChan:
 			}
 
 			_, err = link.Write(binaryPacket)
