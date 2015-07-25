@@ -281,9 +281,9 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 	}
 }
 
-func recoverChanClosed() {
+func recoverChanClosed(dir string) {
 	if e := recover(); e != nil {
-		log.Info("Recovered in start ", e)
+		log.Info("Recovered in start, direction: ", dir, e)
 	}
 }
 
@@ -291,7 +291,7 @@ func start(sh *stateHolder) {
 	var link linker
 	var err error
 	for {
-		link, err = newTCPLink() // newUSBLink()
+		link, err = newUSBLink()
 		if err != nil {
 			log.Warning(err)
 			time.Sleep(1 * time.Second)
@@ -310,7 +310,7 @@ func start(sh *stateHolder) {
 	defer link.Close()
 	// From Controller
 	go func() {
-		defer recoverChanClosed()
+		defer recoverChanClosed("Out")
 		packet := make([]byte, maxHIDFrameSize)
 		buffer := make([]byte, 0, 4096)
 		for {
@@ -353,9 +353,9 @@ func start(sh *stateHolder) {
 
 	// To Controller
 	go func() {
-		defer recoverChanClosed()
+		defer recoverChanClosed("In")
 		for {
-			var binaryPacket []byte
+			var binaryPacket []byte = nil
 			select {
 			case packet := <-sh.inChan:
 				binaryPacket, err = packet.toBinary()
