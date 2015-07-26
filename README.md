@@ -37,7 +37,7 @@ can be set with
 ```bash
 export GOPATH=$HOME/go
 mkdir $GOPATH
-go get github.com/openflylab/bridge && go get github.com/tools/godep
+go get github.com/openskybot/skybot-router && go get github.com/tools/godep
 cd $GOPATH/src/github.com/openskybot/skybot-router
 godep restore
 go build
