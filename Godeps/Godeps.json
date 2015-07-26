@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/openflylab/bridge",
+	"ImportPath": "github.com/openskybot/skybot-router",
 	"GoVersion": "go1.4.2",
 	"Deps": [
 		{

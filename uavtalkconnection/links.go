@@ -30,7 +30,8 @@ var deviceIDs = []struct {
 	vendorID  uint16
 	productID uint16
 }{
-	{vendorID: 0x20a0, productID: 0x415b}, // cc3d, flyingf3, flyingf4, sparky2
+	{vendorID: 0x20a0, productID: 0x415b}, // cc3d, flyingf4, sparky2
+	{vendorID: 0x20a0, productID: 0x4195}, // flyingf3
 	{vendorID: 0x20a0, productID: 0x41d0}, // sparky
 	{vendorID: 0x20a0, productID: 0x415c}, // taulink, does it mean anything to put it here ? pipxtreme
 	{vendorID: 0x20a0, productID: 0x4235}, // colibri

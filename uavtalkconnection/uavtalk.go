@@ -39,6 +39,13 @@ func newDefinitions(dir string) (common.Definitions, error) {
 	return definitions, nil
 }
 
+func sanitizeListString(s string) string {
+	s = strings.Replace(s, ", ", ",", -1)
+	s = strings.Replace(s, "\n", "", -1)
+	s = strings.Replace(s, "\t", "", -1)
+	return s
+}
+
 // NewDefinition create an Definition from an xml file.
 func newDefinition(filePath string) (*common.Definition, error) {
 	file, err := os.Open(filePath)
@@ -66,14 +73,14 @@ func newDefinition(filePath string) (*common.Definition, error) {
 		}
 
 		if len(field.ElementNamesAttr) > 0 {
-			field.ElementNames = strings.Split(field.ElementNamesAttr, ",")
+			field.ElementNames = strings.Split(sanitizeListString(field.ElementNamesAttr), ",")
 			field.Elements = len(field.ElementNames)
 		} else if len(field.ElementNames) > 0 {
 			field.Elements = len(field.ElementNames)
 		}
 
 		if len(field.OptionsAttr) > 0 {
-			field.Options = strings.Split(field.OptionsAttr, ",")
+			field.Options = strings.Split(sanitizeListString(field.OptionsAttr), ",")
 		}
 
 		field.FieldTypeInfo, err = common.TypeInfos.FieldTypeForString(field.Type)
@@ -189,7 +196,7 @@ func packetComplete(buffer []byte) (bool, int, int, error) {
 	start := 0
 	for {
 		offset := -1
-		for i := start; i < len(buffer); i++ {
+		for i := start; i < len(buffer)-shortHeaderLength+1; i++ {
 			if buffer[i] == 0x3c {
 				offset = i
 				break
@@ -203,9 +210,6 @@ func packetComplete(buffer []byte) (bool, int, int, error) {
 		length := byteArrayToInt16(buffer[offset+2 : offset+4])
 
 		if int(length) > maxUAVObjectLength+shortHeaderLength+2 {
-			if offset+1 >= len(buffer) {
-				return false, offset, offset + 1, fmt.Errorf("Wrong length, skipping this 0x3c")
-			}
 			start = offset + 1
 			continue
 		}
@@ -286,6 +290,10 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 
 	for _, definition := range definitions {
 		tmp := definition.Fields.ByteLength()
+		tmp += shortHeaderLength
+		if definition.SingleInstance == false {
+			tmp += 2
+		}
 		if tmp > maxUAVObjectLength {
 			maxUAVObjectLength = tmp
 		}
@@ -315,7 +323,7 @@ func start(sh *stateHolder) {
 	var link linker
 	var err error
 	for {
-		link, err = newTCPLink() // newUSBLink()
+		link, err = newTCPLink() // newUSBLink() ou newTCPLink()
 		if err != nil {
 			log.Warning(err)
 			time.Sleep(1 * time.Second)
@@ -368,7 +376,7 @@ func start(sh *stateHolder) {
 					log.Warning(err)
 					utils.PrintHex(buffer[from:to], to-from)
 				}
-				copy(buffer, buffer[to:]) // baaaaah !! ring packet to the rescue ?
+				copy(buffer, buffer[to:]) // ring buffer ?
 				buffer = buffer[0 : len(buffer)-to]
 			}
 		}
