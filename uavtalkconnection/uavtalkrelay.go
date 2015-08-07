@@ -6,33 +6,35 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/openskybot/skybot-router/utils"
 )
 
 var listenSocket net.Conn
 
-var relay = struct {
-	inChan  chan []byte
-	outChan chan []byte
+var Relay = struct {
+	InChan  chan []byte
+	OutChan chan []byte
 
-	startStopChan chan bool
-	stream        bool
+	stream bool
 
-	connected bool
+	Connected bool
 }{}
 
-func startRelayStream() {
-	relay.startStopChan <- true
+func StartRelayStream() {
+	log.Info("Starting relay stream")
+	Relay.stream = true
+	log.Info("Relay stream started")
 }
 
-func stopRelayStream() {
-	relay.startStopChan <- false
+func StopRelayStream() {
+	log.Info("Stopping relay stream")
+	Relay.stream = false
+	log.Info("Relay stream stopped")
 }
 
-func initUAVTalkRelay(port int) error {
-	relay.inChan = make(chan []byte, 100)
-	relay.outChan = make(chan []byte, 100)
-
-	relay.startStopChan = make(chan bool, 1)
+func InitUAVTalkRelay(port int) error {
+	Relay.InChan = make(chan []byte, 100)
+	Relay.OutChan = make(chan []byte, 100)
 
 	listenSocket, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -46,7 +48,7 @@ func initUAVTalkRelay(port int) error {
 				log.Warning(err)
 				continue
 			}
-			relay.connected = true
+			Relay.Connected = true
 			log.Info("UTalkRelay connection started")
 
 			errorChan := make(chan bool)
@@ -65,13 +67,17 @@ func initUAVTalkRelay(port int) error {
 						return
 					}
 
-					select {
-					case relay.stream = <-relay.startStopChan:
-					default:
+					log.Info("from tcp connection:")
+					utils.PrintHex(buffer, n)
+					packet, err := newPacketFromBinary(buffer[0:n])
+					if err != nil {
+						log.Warning(err)
+					} else {
+						log.Info(packet.definition.Name, packet)
 					}
 
-					if relay.stream {
-						relay.inChan <- buffer[0:n]
+					if Relay.stream {
+						Relay.InChan <- buffer[0:n]
 					}
 				}
 			}(wg)
@@ -82,7 +88,7 @@ func initUAVTalkRelay(port int) error {
 				defer conn.Close()
 				for {
 					select {
-					case buffer := <-relay.outChan:
+					case buffer := <-Relay.OutChan:
 						_, err := conn.Write(buffer)
 						if err != nil {
 							log.Warning(err)
@@ -97,7 +103,7 @@ func initUAVTalkRelay(port int) error {
 
 			wg.Wait()
 			log.Info("UTalkRelay connection stopped")
-			relay.connected = false
+			Relay.Connected = false
 		}
 	}()
 

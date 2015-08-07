@@ -8,7 +8,7 @@ import (
 )
 
 // ChanQueueLength buffered channel length
-const ChanQueueLength = 100
+const ChanQueueLength = 10
 
 // Object native representation of a UAVPacket, just a map
 type Object map[string]interface{}

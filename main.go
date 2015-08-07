@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	runtime.GOMAXPROCS(1) //runtime.NumCPU())
+	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	if len(os.Args) < 2 {
 		log.Fatal(fmt.Sprintf("Usage: %s common_directory/", os.Args[0]))

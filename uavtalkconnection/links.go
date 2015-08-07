@@ -13,7 +13,7 @@ import (
  * It currently supports USB HID and TCP links.
  */
 
-type linker interface {
+type Linker interface {
 	io.Reader
 	io.Writer
 	io.Closer
@@ -24,7 +24,7 @@ type usbLink struct {
 	fixedLengthWriteBuffer []byte
 }
 
-var _ linker = (usbLink{})
+var _ Linker = (usbLink{})
 
 var deviceIDs = []struct {
 	vendorID  uint16
@@ -38,7 +38,7 @@ var deviceIDs = []struct {
 	{vendorID: 0x0fda, productID: 0x0100}, // quanton
 }
 
-func newUSBLink() (linker, error) {
+func NewUSBLink() (Linker, error) {
 	devices, err := hid.Enumerate(0x00, 0x00)
 	if err != nil {
 		return nil, err
@@ -64,16 +64,16 @@ Loop:
 		return nil, err
 	}
 
-	return usbLink{cc, make([]byte, maxHIDFrameSize)}, nil
+	return usbLink{cc, make([]byte, MaxHIDFrameSize)}, nil
 }
 
 func (l usbLink) Write(b []byte) (int, error) {
 	currentOffset := 0
 	for currentOffset < len(b) {
 		toWriteLength := len(b) - currentOffset
-		// packet on the HID link can't be > maxHIDFrameSize, split it if it's the case.
-		if toWriteLength > maxHIDFrameSize-2 {
-			toWriteLength = maxHIDFrameSize - 2
+		// packet on the HID link can't be > MaxHIDFrameSize, split it if it's the case.
+		if toWriteLength > MaxHIDFrameSize-2 {
+			toWriteLength = MaxHIDFrameSize - 2
 		}
 
 		// USB HID link requires a reportID and packet length as first bytes
@@ -113,8 +113,8 @@ func (l usbLink) Close() error {
 
 type tcpLink net.Conn
 
-var _ linker = (tcpLink)(nil)
+var _ Linker = (tcpLink)(nil)
 
-func newTCPLink() (linker, error) {
+func NewTCPLink() (Linker, error) {
 	return net.Dial("tcp", "localhost:9000")
 }

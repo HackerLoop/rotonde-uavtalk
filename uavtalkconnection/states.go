@@ -10,6 +10,7 @@ import (
 )
 
 /*
+ * This files needs refactoring for better state management.
  * This is where we manage the whole usb layer.
  * States are used to manage handshake and session management.
  * See https://github.com/TauLabs/TauLabs/wiki/UAVTalk-session-management
@@ -77,10 +78,6 @@ func (s *notConnected) out(p Packet) bool {
 	return false
 }
 
-const noSessionStateFirstSend = 1
-const noSessionStateCreateSession = 2
-const noSessionStateFetchObjects = 3
-
 type noSession struct {
 	stateHolder *stateHolder
 
@@ -123,11 +120,13 @@ func (s *noSession) out(p Packet) bool {
 				s.stateHolder.inChan <- sessionManagingPacketAck
 
 				objectID := p.data["ObjectID"].(uint32)
-				definition, err := definitions.GetDefinitionForObjectID(objectID)
-				if err != nil {
-					log.Warning(err)
-				} else {
-					s.stateHolder.connection.OutChan <- *definition
+				if objectID != 0 {
+					definition, err := definitions.GetDefinitionForObjectID(objectID)
+					if err != nil {
+						log.Warning(err)
+					} else {
+						s.stateHolder.connection.OutChan <- *definition
+					}
 				}
 
 				if s.currentObjectID >= s.numberOfObjects {

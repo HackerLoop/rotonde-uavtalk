@@ -115,7 +115,7 @@ func newDefinition(filePath string) (*common.Definition, error) {
 const versionMask = 0x20
 const shortHeaderLength = 8
 
-const maxHIDFrameSize = 64
+const MaxHIDFrameSize = 64
 
 const objectCmd = 0
 const objectRequest = 1
@@ -301,7 +301,7 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 
 	log.Infof("%d xml files loaded, maxUAVObjectLength: %d\n", len(definitions), maxUAVObjectLength)
 
-	err = initUAVTalkRelay(9001)
+	err = InitUAVTalkRelay(9001)
 	if err != nil {
 		log.Warning(err)
 	}
@@ -320,10 +320,10 @@ func recoverChanClosed(dir string) {
 }
 
 func start(sh *stateHolder) {
-	var link linker
+	var link Linker
 	var err error
 	for {
-		link, err = newTCPLink() // newUSBLink() ou newTCPLink()
+		link, err = NewTCPLink() // newUSBLink() ou newTCPLink()
 		if err != nil {
 			log.Warning(err)
 			time.Sleep(1 * time.Second)
@@ -332,16 +332,16 @@ func start(sh *stateHolder) {
 		break
 	}
 
-	startRelayStream()
+	StartRelayStream()
 
 	linkError := make(chan error)
 	defer close(linkError)
 	defer link.Close()
-	defer stopRelayStream()
+	defer StopRelayStream()
 	// From Controller
 	go func() {
 		defer recoverChanClosed("Out")
-		packet := make([]byte, maxHIDFrameSize)
+		packet := make([]byte, MaxHIDFrameSize)
 		buffer := make([]byte, 0, 4096)
 		for {
 			n, err := link.Read(packet)
@@ -353,8 +353,8 @@ func start(sh *stateHolder) {
 				continue
 			}
 
-			if relay.connected {
-				relay.outChan <- packet[0:n]
+			if Relay.Connected {
+				Relay.OutChan <- packet[0:n]
 			}
 			buffer = append(buffer, packet[0:n]...)
 
@@ -394,7 +394,7 @@ func start(sh *stateHolder) {
 					log.Warning(err)
 					continue
 				}
-			case binaryPacket = <-relay.inChan:
+			case binaryPacket = <-Relay.InChan:
 			}
 
 			_, err = link.Write(binaryPacket)
