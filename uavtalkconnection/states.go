@@ -11,7 +11,7 @@ import (
 
 /*
  * This files needs refactoring for better state management.
- * This is where we manage the whole usb layer.
+ * This is where we abstract the whole uavtalk layer.
  * States are used to manage handshake and session management.
  * See https://github.com/TauLabs/TauLabs/wiki/UAVTalk-session-management
  * and https://wiki.openpilot.org/display/WIKI/UAVTalk
