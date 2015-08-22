@@ -3,7 +3,16 @@ package common
 import (
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 )
+
+/**
+ * this is currently shared between the uavtalk connection for parsing Taulabs's XML definitions,
+ * and the dispatcher as definition packets used to expose available definitions.
+ * This is going to move to the dispatcher connection,
+ * and a Definition struct will be defined in the dispatcher.
+ */
 
 // Definitions is a slice of Definition, adds findBy
 type Definitions []*Definition
@@ -131,27 +140,111 @@ type Definition struct {
 
 	ObjectID uint32 `json:"id"`
 
+	MetaFor *Definition
+	Meta    *Definition
+
 	Access struct {
-		Gcs    string `xml:"gcs,attr" json:"gcs"`
-		Flight string `xml:"flight,attr" json:"flight"`
-	} `xml:"access" json:"access"`
+		Gcs    string `xml:"gcs,attr" json:"-"`
+		Flight string `xml:"flight,attr" json:"-"`
+	} `xml:"access" json:"-"`
 
 	TelemetryGcs struct {
-		Acked      bool   `xml:"acked,attr" json:"acked"`
-		UpdateMode string `xml:"updatemode,attr" json:"updateMode"`
-		Period     string `xml:"period,attr" json:"period"`
-	} `xml:"telemetrygcs" json:"telemetryGcs"`
+		Acked      bool   `xml:"acked,attr" json:"-"`
+		UpdateMode string `xml:"updatemode,attr" json:"-"`
+		Period     string `xml:"period,attr" json:"-"`
+	} `xml:"telemetrygcs" json:"-"`
 
 	TelemetryFlight struct {
-		Acked      bool   `xml:"acked,attr" json:"acked"`
-		UpdateMode string `xml:"updatemode,attr" json:"updateMode"`
-		Period     string `xml:"period,attr" json:"period"`
-	} `xml:"telemetryflight" json:"telemetryFlight"`
+		Acked      bool   `xml:"acked,attr" json:"-"`
+		UpdateMode string `xml:"updatemode,attr" json:"-"`
+		Period     string `xml:"period,attr" json:"-"`
+	} `xml:"telemetryflight" json:"-"`
 
 	Logging struct {
-		UpdateMode string `xml:"updatemode,attr" json:"updateMode"`
-		Period     string `xml:"period,attr" json:"period"`
-	} `xml:"logging" json:"logging"`
+		UpdateMode string `xml:"updatemode,attr" json:"-"`
+		Period     string `xml:"period,attr" json:"-"`
+	} `xml:"logging" json:"-"`
 
 	Fields FieldsSlice `xml:"field" json:"fields"`
+}
+
+// FinishSetup has to be called on a definition once the fields are setup
+func (definition *Definition) FinishSetup() error {
+	var err error
+	// fields post process
+	for _, field := range definition.Fields {
+		if len(field.CloneOf) != 0 {
+			continue
+		}
+
+		if field.Elements == 0 {
+			field.Elements = 1
+		}
+
+		if len(field.ElementNamesAttr) > 0 {
+			field.ElementNames = strings.Split(sanitizeListString(field.ElementNamesAttr), ",")
+			field.Elements = len(field.ElementNames)
+		} else if len(field.ElementNames) > 0 {
+			field.Elements = len(field.ElementNames)
+		}
+
+		if len(field.OptionsAttr) > 0 {
+			field.Options = strings.Split(sanitizeListString(field.OptionsAttr), ",")
+		}
+
+		field.FieldTypeInfo, err = TypeInfos.FieldTypeForString(field.Type)
+		if err != nil {
+			return err
+		}
+	}
+
+	// create clones
+	for _, field := range definition.Fields {
+		if len(field.CloneOf) != 0 {
+			clonedField, err := definition.Fields.FieldForName(field.CloneOf)
+			if err != nil {
+				return err
+			}
+			name, cloneOf := field.Name, field.CloneOf
+			*field = *clonedField
+			field.Name, field.CloneOf = name, cloneOf
+		}
+	}
+
+	sort.Stable(definition.Fields)
+	return nil
+}
+
+func sanitizeListString(s string) string {
+	s = strings.Replace(s, ", ", ",", -1)
+	s = strings.Replace(s, "\n", "", -1)
+	s = strings.Replace(s, "\t", "", -1)
+	return s
+}
+
+func NewMetaDefinition(parent *Definition) (*Definition, error) {
+	if parent.MetaFor != nil {
+		return nil, fmt.Errorf("Meta definition cannot be created from meta definition")
+	}
+
+	meta := &Definition{}
+	meta.Name = fmt.Sprintf("%s%s", parent.Name, "Meta")
+	meta.Description = fmt.Sprintf("Meta for: \n%s", parent.Description)
+	meta.SingleInstance = true
+	meta.Settings = false
+
+	meta.ObjectID = parent.ObjectID + 1
+
+	meta.MetaFor = parent
+	parent.Meta = meta
+
+	meta.Fields = append(meta.Fields, &FieldDefinition{Name: "Modes", Units: "boolean", Type: "uint8"})
+	meta.Fields = append(meta.Fields, &FieldDefinition{Name: "Flight Telemetry Update Period", Units: "ms", Type: "uint16"})
+	meta.Fields = append(meta.Fields, &FieldDefinition{Name: "GCS Telemetry Update Period", Units: "ms", Type: "uint16"})
+	meta.Fields = append(meta.Fields, &FieldDefinition{Name: "Logging Update Period", Units: "ms", Type: "uint16"})
+
+	meta.FinishSetup()
+
+	//meta.Access.
+	return meta, nil
 }

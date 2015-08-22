@@ -108,6 +108,11 @@ func (s *noSession) in(p Packet) bool {
 	return false
 }
 
+/**
+ * TODO: This is getting messy, and the initial object retrieval is not done, but the
+ * process is still engaged on fc side, resulting in a 5 seconds pause of the stream,
+ * which should be avoidable.
+ */
 func (s *noSession) out(p Packet) bool {
 	if p.definition == s.sessionManaging {
 		if p.cmd == objectCmd || p.cmd == objectCmdWithAck {
@@ -126,6 +131,7 @@ func (s *noSession) out(p Packet) bool {
 						log.Warning(err)
 					} else {
 						s.stateHolder.connection.OutChan <- *definition
+						s.stateHolder.connection.OutChan <- *definition.Meta
 					}
 				}
 

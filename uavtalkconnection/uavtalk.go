@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"sort"
-	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -34,19 +32,16 @@ func newDefinitions(dir string) (common.Definitions, error) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		definitions = append(definitions, definition)
+		_, err = common.NewMetaDefinition(definition)
+		if err != nil {
+			log.Fatal(err)
+		}
+		definitions = append(definitions, definition, definition.Meta)
 	}
 	return definitions, nil
 }
 
-func sanitizeListString(s string) string {
-	s = strings.Replace(s, ", ", ",", -1)
-	s = strings.Replace(s, "\n", "", -1)
-	s = strings.Replace(s, "\t", "", -1)
-	return s
-}
-
-// NewDefinition create an Definition from an xml file.
+// NewDefinition create a Definition from an xml file.
 func newDefinition(filePath string) (*common.Definition, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -61,48 +56,9 @@ func newDefinition(filePath string) (*common.Definition, error) {
 	decoder.Decode(content)
 
 	definition := content.Definition
-
-	// fields post process
-	for _, field := range definition.Fields {
-		if len(field.CloneOf) != 0 {
-			continue
-		}
-
-		if field.Elements == 0 {
-			field.Elements = 1
-		}
-
-		if len(field.ElementNamesAttr) > 0 {
-			field.ElementNames = strings.Split(sanitizeListString(field.ElementNamesAttr), ",")
-			field.Elements = len(field.ElementNames)
-		} else if len(field.ElementNames) > 0 {
-			field.Elements = len(field.ElementNames)
-		}
-
-		if len(field.OptionsAttr) > 0 {
-			field.Options = strings.Split(sanitizeListString(field.OptionsAttr), ",")
-		}
-
-		field.FieldTypeInfo, err = common.TypeInfos.FieldTypeForString(field.Type)
-		if err != nil {
-			return nil, err
-		}
+	if err := definition.FinishSetup(); err != nil {
+		return nil, err
 	}
-
-	// create clones
-	for _, field := range definition.Fields {
-		if len(field.CloneOf) != 0 {
-			clonedField, err := definition.Fields.FieldForName(field.CloneOf)
-			if err != nil {
-				return nil, err
-			}
-			name, cloneOf := field.Name, field.CloneOf
-			*field = *clonedField
-			field.Name, field.CloneOf = name, cloneOf
-		}
-	}
-
-	sort.Stable(definition.Fields)
 
 	calculateID(definition)
 
@@ -280,7 +236,7 @@ func newPacket(definition *common.Definition, cmd uint8, instanceID uint16, data
 	return &buffer
 }
 
-// Start starts the HID driver
+// Start starts the UAVTalk connection to dispatcher
 func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 	defs, err := newDefinitions(definitionsDir)
 	if err != nil {
