@@ -138,10 +138,10 @@ type Definition struct {
 	Settings       bool   `xml:"settings,attr" json:"settings"`
 	Category       string `xml:"category,attr" json:"category"`
 
-	ObjectID uint32 `json:"id"`
+	ObjectID uint32 `json:"id" mapstructure:"id"`
 
-	MetaFor *Definition
-	Meta    *Definition
+	MetaFor *Definition `xml:"-" json:"-"`
+	Meta    *Definition `xml:"-" json:"-"`
 
 	Access struct {
 		Gcs    string `xml:"gcs,attr" json:"-"`
@@ -238,13 +238,14 @@ func NewMetaDefinition(parent *Definition) (*Definition, error) {
 	meta.MetaFor = parent
 	parent.Meta = meta
 
-	meta.Fields = append(meta.Fields, &FieldDefinition{Name: "Modes", Units: "boolean", Type: "uint8"})
-	meta.Fields = append(meta.Fields, &FieldDefinition{Name: "Flight Telemetry Update Period", Units: "ms", Type: "uint16"})
-	meta.Fields = append(meta.Fields, &FieldDefinition{Name: "GCS Telemetry Update Period", Units: "ms", Type: "uint16"})
-	meta.Fields = append(meta.Fields, &FieldDefinition{Name: "Logging Update Period", Units: "ms", Type: "uint16"})
+	meta.Fields = append(meta.Fields, &FieldDefinition{Name: "modes", Units: "boolean", Type: "uint8"})
+	meta.Fields = append(meta.Fields, &FieldDefinition{Name: "periodFlight", Units: "ms", Type: "uint16"})
+	meta.Fields = append(meta.Fields, &FieldDefinition{Name: "periodGCS", Units: "ms", Type: "uint16"})
+	meta.Fields = append(meta.Fields, &FieldDefinition{Name: "periodLog", Units: "ms", Type: "uint16"})
 
-	meta.FinishSetup()
+	if err := meta.FinishSetup(); err != nil {
+		return nil, err
+	}
 
-	//meta.Access.
 	return meta, nil
 }
