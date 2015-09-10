@@ -324,7 +324,7 @@ func newPacketFromDispatcher(dispatcherPacket interface{}) (*Packet, error) {
 		}
 		return newPacket(definition, objectRequest, dp.InstanceID, map[string]interface{}{}), nil
 	default:
-		return nil, fmt.Errorf("Only Update or Request packets con go through USB connection")
+		return nil, fmt.Errorf("Only Update or Request packets can go through USB connection")
 	}
 }
 

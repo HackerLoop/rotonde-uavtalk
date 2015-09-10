@@ -255,7 +255,7 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 		}
 	}
 
-	log.Infof("%d xml files loaded, maxUAVObjectLength: %d\n", len(definitions), maxUAVObjectLength)
+	log.Infof("%d xml files loaded, maxUAVObjectLength: %d", len(definitions), maxUAVObjectLength)
 
 	err = InitUAVTalkRelay(9001)
 	if err != nil {
