@@ -1,12 +1,11 @@
-package uavtalkconnection
+package main
 
 import (
 	"fmt"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/openskybot/skybot-router/common"
-	"github.com/openskybot/skybot-router/dispatcher"
+	"github.com/openskybot/rotonde-uavtalk/uavtalk"
 )
 
 /*
@@ -18,9 +17,8 @@ import (
 **/
 
 type stateHolder struct {
-	connection *dispatcher.Connection
-	inChan     chan Packet
-	outChan    chan Packet
+	inChan  chan uavtalk.Packet
+	outChan chan Packet
 
 	state             state
 	autoAckAndPersist bool
@@ -185,7 +183,7 @@ func (s *stream) out(p Packet) bool {
 	return true
 }
 
-func newStateHolder(d *dispatcher.Dispatcher) *stateHolder {
+func newStateHolder(inChan chan Packet, outChan chan Packet) *stateHolder {
 	sh := &stateHolder{}
 	sh.connection = dispatcher.NewConnection()
 	sh.inChan = make(chan Packet, dispatcher.ChanQueueLength)

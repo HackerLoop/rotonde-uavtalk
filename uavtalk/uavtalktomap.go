@@ -1,14 +1,12 @@
-package uavtalkconnection
+package uavtalk
 
 import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-
-	"github.com/openskybot/skybot-router/common"
 )
 
-func readFromUAVTalk(field *common.FieldDefinition, reader *bytes.Reader) (interface{}, error) {
+func readFromUAVTalk(field *FieldDefinition, reader *bytes.Reader) (interface{}, error) {
 	typeInfo := field.FieldTypeInfo
 	var result interface{}
 	switch typeInfo.Name {
@@ -70,7 +68,7 @@ func readFromUAVTalk(field *common.FieldDefinition, reader *bytes.Reader) (inter
 	return result, nil
 }
 
-func uAVTalkToInterface(field *common.FieldDefinition, reader *bytes.Reader) (interface{}, error) {
+func uAVTalkToInterface(field *FieldDefinition, reader *bytes.Reader) (interface{}, error) {
 	var result interface{}
 	if field.Elements > 1 && len(field.ElementNames) == 0 {
 		resultArray := make([]interface{}, field.Elements)
@@ -102,7 +100,7 @@ func uAVTalkToInterface(field *common.FieldDefinition, reader *bytes.Reader) (in
 	return result, nil
 }
 
-func uAVTalkToMap(uavdef *common.Definition, data []byte) (map[string]interface{}, error) {
+func uAVTalkToMap(uavdef *Definition, data []byte) (map[string]interface{}, error) {
 	reader := bytes.NewReader(data)
 	result := make(map[string]interface{})
 

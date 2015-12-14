@@ -1,17 +1,14 @@
-package uavtalkconnection
+package uavtalk
 
 import (
 	"bytes"
 	"fmt"
 	"log"
 
-	"github.com/openskybot/skybot-router/common"
-
 	"code.google.com/p/go-charset/charset"
-	_ "code.google.com/p/go-charset/data" // can't be in main, could it ? (golint spawns a warning)
+	_ "code.google.com/p/go-charset/data"
 )
 
-// Hash the objectID from the taulabs is just a hash actually
 type Hash uint32
 
 func (hash *Hash) updateHashWithInt(value uint32) {
@@ -48,7 +45,7 @@ func toISO88591(utf8 string) (string, error) {
 	return buf.String(), nil
 }
 
-func calculateID(uavdef *common.Definition) {
+func calculateID(uavdef *Definition) {
 	hash := new(Hash)
 
 	hash.updateHashWithString(uavdef.Name)

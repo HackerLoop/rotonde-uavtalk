@@ -1,4 +1,4 @@
-package uavtalkconnection
+package uavtalk
 
 import (
 	"bytes"
@@ -10,29 +10,26 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/openskybot/skybot-router/common"
-	"github.com/openskybot/skybot-router/dispatcher"
-	"github.com/openskybot/skybot-router/utils"
 )
 
-var definitions common.Definitions
+var definitions Definitions
 var maxUAVObjectLength int
 
 // newDefinitions loads all xml files from a directory
-func newDefinitions(dir string) (common.Definitions, error) {
+func newDefinitions(dir string) (Definitions, error) {
 	fileInfos, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
 
-	definitions := make([]*common.Definition, 0, 150)
+	definitions := make([]*Definition, 0, 150)
 	for _, fileInfo := range fileInfos {
 		filePath := fmt.Sprintf("%s%s", dir, fileInfo.Name())
 		definition, err := newDefinition(filePath)
 		if err != nil {
 			log.Fatal(err)
 		}
-		_, err = common.NewMetaDefinition(definition)
+		_, err = NewMetaDefinition(definition)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -42,7 +39,7 @@ func newDefinitions(dir string) (common.Definitions, error) {
 }
 
 // NewDefinition create a Definition from an xml file.
-func newDefinition(filePath string) (*common.Definition, error) {
+func newDefinition(filePath string) (*Definition, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
@@ -51,7 +48,7 @@ func newDefinition(filePath string) (*common.Definition, error) {
 	decoder := xml.NewDecoder(file)
 
 	var content = &struct {
-		Definition *common.Definition `xml:"object"`
+		Definition *Definition `xml:"object"`
 	}{}
 	decoder.Decode(content)
 
@@ -81,11 +78,11 @@ const objectNack = 4
 
 // Packet data from/to the flight controller
 type Packet struct {
-	definition *common.Definition
-	cmd        uint8
-	length     uint16
-	instanceID uint16
-	data       map[string]interface{}
+	Definition *Definition
+	Cmd        uint8
+	Length     uint16
+	InstanceID uint16
+	Data       map[string]interface{}
 }
 
 func (packet *Packet) toBinary() ([]byte, error) {
@@ -95,26 +92,26 @@ func (packet *Packet) toBinary() ([]byte, error) {
 		return nil, err
 	}
 
-	if err := binary.Write(writer, binary.LittleEndian, packet.cmd|versionMask); err != nil {
+	if err := binary.Write(writer, binary.LittleEndian, packet.Cmd|versionMask); err != nil {
 		return nil, err
 	}
 
-	if err := binary.Write(writer, binary.LittleEndian, packet.length); err != nil {
+	if err := binary.Write(writer, binary.LittleEndian, packet.Length); err != nil {
 		return nil, err
 	}
 
-	if err := binary.Write(writer, binary.LittleEndian, packet.definition.ObjectID); err != nil {
+	if err := binary.Write(writer, binary.LittleEndian, packet.Definition.ObjectID); err != nil {
 		return nil, err
 	}
 
-	if packet.definition.SingleInstance == false {
-		if err := binary.Write(writer, binary.LittleEndian, packet.instanceID); err != nil {
+	if packet.Definition.SingleInstance == false {
+		if err := binary.Write(writer, binary.LittleEndian, packet.InstanceID); err != nil {
 			return nil, err
 		}
 	}
 
-	if packet.cmd == objectCmd || packet.cmd == objectCmdWithAck {
-		data, err := mapToUAVTalk(packet.definition, packet.data)
+	if packet.Cmd == objectCmd || packet.Cmd == objectCmdWithAck {
+		data, err := mapToUAVTalk(packet.Definition, packet.Data)
 		if err != nil {
 			return nil, err
 		}
@@ -188,56 +185,56 @@ func newPacketFromBinary(binaryPacket []byte) (*Packet, error) {
 	headerSize := shortHeaderLength
 	buffer := Packet{}
 
-	buffer.cmd = binaryPacket[1] ^ versionMask
-	buffer.length = byteArrayToInt16(binaryPacket[2:4])
+	buffer.Cmd = binaryPacket[1] ^ versionMask
+	buffer.Length = byteArrayToInt16(binaryPacket[2:4])
 	objectID := byteArrayToInt32(binaryPacket[4:8])
 
 	var err error
-	buffer.definition, err = definitions.GetDefinitionForObjectID(objectID)
+	buffer.Definition, err = definitions.GetDefinitionForObjectID(objectID)
 	if err != nil {
 		return nil, err
 	}
-	if buffer.definition.SingleInstance == false {
-		buffer.instanceID = byteArrayToInt16(binaryPacket[8:10])
+	if buffer.Definition.SingleInstance == false {
+		buffer.InstanceID = byteArrayToInt16(binaryPacket[8:10])
 		headerSize += 2
 	}
 
 	binaryData := binaryPacket[headerSize : len(binaryPacket)-1]
 
-	if buffer.cmd == objectCmd || buffer.cmd == objectCmdWithAck {
-		buffer.data, err = uAVTalkToMap(buffer.definition, binaryData)
+	if buffer.Cmd == objectCmd || buffer.Cmd == objectCmdWithAck {
+		buffer.Data, err = uAVTalkToMap(buffer.Definition, binaryData)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		buffer.data = map[string]interface{}{}
+		buffer.Data = map[string]interface{}{}
 	}
 
 	return &buffer, nil
 }
 
-func newPacket(definition *common.Definition, cmd uint8, instanceID uint16, data map[string]interface{}) *Packet {
+func newPacket(definition *Definition, cmd uint8, instanceID uint16, data map[string]interface{}) *Packet {
 	buffer := Packet{}
-	buffer.definition = definition
-	buffer.cmd = cmd
-	buffer.instanceID = instanceID
+	buffer.Definition = definition
+	buffer.Cmd = cmd
+	buffer.InstanceID = instanceID
 
 	var fieldsLength int
 	if cmd == objectCmd || cmd == objectCmdWithAck {
 		fieldsLength = definition.Fields.ByteLength()
 	}
 
-	if buffer.definition.SingleInstance == false {
-		buffer.length = uint16(shortHeaderLength + fieldsLength + 2)
+	if buffer.Definition.SingleInstance == false {
+		buffer.Length = uint16(shortHeaderLength + fieldsLength + 2)
 	} else {
-		buffer.length = uint16(shortHeaderLength + fieldsLength)
+		buffer.Length = uint16(shortHeaderLength + fieldsLength)
 	}
-	buffer.data = data
+	buffer.Data = data
 	return &buffer
 }
 
 // Start starts the UAVTalk connection to dispatcher
-func Start(d *dispatcher.Dispatcher, definitionsDir string) {
+func Start(inChan chan Packet, outChan chan Packet, definitionsDir string) {
 	defs, err := newDefinitions(definitionsDir)
 	if err != nil {
 		log.Fatal(err)
@@ -257,15 +254,8 @@ func Start(d *dispatcher.Dispatcher, definitionsDir string) {
 
 	log.Infof("%d xml files loaded, maxUAVObjectLength: %d", len(definitions), maxUAVObjectLength)
 
-	err = InitUAVTalkRelay(9001)
-	if err != nil {
-		log.Warning(err)
-	}
-
-	sh := newStateHolder(d)
-
 	for {
-		start(sh)
+		start(inChan, outChan)
 	}
 }
 
@@ -275,11 +265,11 @@ func recoverChanClosed(dir string) {
 	}
 }
 
-func start(sh *stateHolder) {
+func start(inChan chan Packet, outChan chan Packet) {
 	var link Linker
 	var err error
 	for {
-		link, err = NewTCPLink() // newUSBLink() ou newTCPLink()
+		link, err = NewUSBLink() // newUSBLink() ou newTCPLink()
 		if err != nil {
 			log.Warning(err)
 			time.Sleep(1 * time.Second)
@@ -288,12 +278,9 @@ func start(sh *stateHolder) {
 		break
 	}
 
-	StartRelayStream()
-
 	linkError := make(chan error)
 	defer close(linkError)
 	defer link.Close()
-	defer StopRelayStream()
 	// From Controller
 	go func() {
 		defer recoverChanClosed("Out")
@@ -309,9 +296,6 @@ func start(sh *stateHolder) {
 				continue
 			}
 
-			if Relay.Connected {
-				Relay.OutChan <- packet[0:n]
-			}
 			buffer = append(buffer, packet[0:n]...)
 
 			for {
@@ -322,15 +306,15 @@ func start(sh *stateHolder) {
 					}
 
 					if uavTalkObject, err := newPacketFromBinary(buffer[from:to]); err == nil {
-						sh.outChan <- *uavTalkObject
+						outChan <- *uavTalkObject
 					} else {
 						log.Warning(err)
-						utils.PrintHex(buffer[from:to], to-from)
+						PrintHex(buffer[from:to], to-from)
 					}
 				} else {
 					// the packet is complete but its integrity is seriously questionned, we go through so we can strip it from buffer
 					log.Warning(err)
-					utils.PrintHex(buffer[from:to], to-from)
+					PrintHex(buffer[from:to], to-from)
 				}
 				copy(buffer, buffer[to:]) // ring buffer ?
 				buffer = buffer[0 : len(buffer)-to]
@@ -344,13 +328,12 @@ func start(sh *stateHolder) {
 		for {
 			var binaryPacket []byte
 			select {
-			case packet := <-sh.inChan:
+			case packet := <-inChan:
 				binaryPacket, err = packet.toBinary()
 				if err != nil {
 					log.Warning(err)
 					continue
 				}
-			case binaryPacket = <-Relay.InChan:
 			}
 
 			_, err = link.Write(binaryPacket)
@@ -363,5 +346,4 @@ func start(sh *stateHolder) {
 
 	err = <-linkError
 	log.Warning(err)
-	sh.setState(&notConnected{stateHolder: sh})
 }

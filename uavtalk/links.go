@@ -1,4 +1,4 @@
-package uavtalkconnection
+package uavtalk
 
 import (
 	"errors"
