@@ -115,8 +115,8 @@ func (fields FieldsSlice) Swap(i, j int) {
 // FieldDefinition _
 type FieldDefinition struct {
 	Name  string `xml:"name,attr" json:"name"`
+	Type  string `xml:"type,attr" json:"type"`
 	Units string `xml:"units,attr" json:"units"`
-	Type  string `xml:"type,attr" json:"-"`
 
 	FieldTypeInfo *FieldTypeInfo
 
@@ -224,7 +224,7 @@ func sanitizeListString(s string) string {
 
 func NewMetaDefinition(parent *Definition) (*Definition, error) {
 	if parent.MetaFor != nil {
-		return nil, fmt.Errorf("Meta definition cannot be created from meta definition")
+		return nil, fmt.Errorf("Meta definition cannot be created for meta definitions")
 	}
 
 	meta := &Definition{}

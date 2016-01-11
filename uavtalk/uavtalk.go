@@ -12,69 +12,23 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-var definitions Definitions
+var AllDefinitions Definitions
 var maxUAVObjectLength int
-
-// newDefinitions loads all xml files from a directory
-func newDefinitions(dir string) (Definitions, error) {
-	fileInfos, err := ioutil.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-
-	definitions := make([]*Definition, 0, 150)
-	for _, fileInfo := range fileInfos {
-		filePath := fmt.Sprintf("%s%s", dir, fileInfo.Name())
-		definition, err := newDefinition(filePath)
-		if err != nil {
-			log.Fatal(err)
-		}
-		_, err = NewMetaDefinition(definition)
-		if err != nil {
-			log.Fatal(err)
-		}
-		definitions = append(definitions, definition, definition.Meta)
-	}
-	return definitions, nil
-}
-
-// NewDefinition create a Definition from an xml file.
-func newDefinition(filePath string) (*Definition, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return nil, err
-	}
-
-	decoder := xml.NewDecoder(file)
-
-	var content = &struct {
-		Definition *Definition `xml:"object"`
-	}{}
-	decoder.Decode(content)
-
-	definition := content.Definition
-	if err := definition.FinishSetup(); err != nil {
-		return nil, err
-	}
-
-	calculateID(definition)
-
-	return definition, nil
-}
 
 // TODO: refactor for better value reading (encoding/binary ?)
 // See uavtalk.cpp state machine pattern in GCS
+// see parsing in rotonde HID
 
 const versionMask = 0x20
 const shortHeaderLength = 8
 
 const MaxHIDFrameSize = 64
 
-const objectCmd = 0
-const objectRequest = 1
-const objectCmdWithAck = 2
-const objectAck = 3
-const objectNack = 4
+const ObjectCmd = 0
+const ObjectRequest = 1
+const ObjectCmdWithAck = 2
+const ObjectAck = 3
+const ObjectNack = 4
 
 // Packet data from/to the flight controller
 type Packet struct {
@@ -110,7 +64,7 @@ func (packet *Packet) toBinary() ([]byte, error) {
 		}
 	}
 
-	if packet.Cmd == objectCmd || packet.Cmd == objectCmdWithAck {
+	if packet.Cmd == ObjectCmd || packet.Cmd == ObjectCmdWithAck {
 		data, err := mapToUAVTalk(packet.Definition, packet.Data)
 		if err != nil {
 			return nil, err
@@ -190,7 +144,7 @@ func newPacketFromBinary(binaryPacket []byte) (*Packet, error) {
 	objectID := byteArrayToInt32(binaryPacket[4:8])
 
 	var err error
-	buffer.Definition, err = definitions.GetDefinitionForObjectID(objectID)
+	buffer.Definition, err = AllDefinitions.GetDefinitionForObjectID(objectID)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +155,7 @@ func newPacketFromBinary(binaryPacket []byte) (*Packet, error) {
 
 	binaryData := binaryPacket[headerSize : len(binaryPacket)-1]
 
-	if buffer.Cmd == objectCmd || buffer.Cmd == objectCmdWithAck {
+	if buffer.Cmd == ObjectCmd || buffer.Cmd == ObjectCmdWithAck {
 		buffer.Data, err = uAVTalkToMap(buffer.Definition, binaryData)
 		if err != nil {
 			return nil, err
@@ -220,7 +174,7 @@ func newPacket(definition *Definition, cmd uint8, instanceID uint16, data map[st
 	buffer.InstanceID = instanceID
 
 	var fieldsLength int
-	if cmd == objectCmd || cmd == objectCmdWithAck {
+	if cmd == ObjectCmd || cmd == ObjectCmdWithAck {
 		fieldsLength = definition.Fields.ByteLength()
 	}
 
@@ -233,15 +187,17 @@ func newPacket(definition *Definition, cmd uint8, instanceID uint16, data map[st
 	return &buffer
 }
 
-// Start starts the UAVTalk connection to dispatcher
-func Start(inChan chan Packet, outChan chan Packet, definitionsDir string) {
+func LoadDefinitions(definitionsDir string) {
 	defs, err := newDefinitions(definitionsDir)
 	if err != nil {
 		log.Fatal(err)
 	}
-	definitions = defs
+	AllDefinitions = defs
+}
 
-	for _, definition := range definitions {
+// Start starts the UAVTalk connection to dispatcher
+func Start(inChan chan Packet, outChan chan Packet) {
+	for _, definition := range AllDefinitions {
 		tmp := definition.Fields.ByteLength()
 		tmp += shortHeaderLength
 		if definition.SingleInstance == false {
@@ -252,7 +208,7 @@ func Start(inChan chan Packet, outChan chan Packet, definitionsDir string) {
 		}
 	}
 
-	log.Infof("%d xml files loaded, maxUAVObjectLength: %d", len(definitions), maxUAVObjectLength)
+	log.Infof("%d xml files loaded, maxUAVObjectLength: %d", len(AllDefinitions), maxUAVObjectLength)
 
 	for {
 		start(inChan, outChan)
@@ -269,7 +225,7 @@ func start(inChan chan Packet, outChan chan Packet) {
 	var link Linker
 	var err error
 	for {
-		link, err = NewUSBLink() // newUSBLink() ou newTCPLink()
+		link, err = NewTCPLink() // newUSBLink() ou newTCPLink()
 		if err != nil {
 			log.Warning(err)
 			time.Sleep(1 * time.Second)
@@ -312,11 +268,12 @@ func start(inChan chan Packet, outChan chan Packet) {
 						PrintHex(buffer[from:to], to-from)
 					}
 				} else {
-					// the packet is complete but its integrity is seriously questionned, we go through so we can strip it from buffer
+					// the packet is complete but its integrity is seriously questionned,
+					// we go through so we can strip it from buffer
 					log.Warning(err)
 					PrintHex(buffer[from:to], to-from)
 				}
-				copy(buffer, buffer[to:]) // ring buffer ?
+				copy(buffer, buffer[to:])
 				buffer = buffer[0 : len(buffer)-to]
 			}
 		}
@@ -346,4 +303,51 @@ func start(inChan chan Packet, outChan chan Packet) {
 
 	err = <-linkError
 	log.Warning(err)
+}
+
+// newDefinitions loads all xml files from a directory
+func newDefinitions(dir string) (Definitions, error) {
+	fileInfos, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	AllDefinitions := make([]*Definition, 0, 150)
+	for _, fileInfo := range fileInfos {
+		filePath := fmt.Sprintf("%s%s", dir, fileInfo.Name())
+		definition, err := newDefinition(filePath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		_, err = NewMetaDefinition(definition)
+		if err != nil {
+			log.Fatal(err)
+		}
+		AllDefinitions = append(AllDefinitions, definition, definition.Meta)
+	}
+	return AllDefinitions, nil
+}
+
+// NewDefinition create a Definition from an xml file.
+func newDefinition(filePath string) (*Definition, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	decoder := xml.NewDecoder(file)
+
+	var content = &struct {
+		Definition *Definition `xml:"object"`
+	}{}
+	decoder.Decode(content)
+
+	definition := content.Definition
+	if err := definition.FinishSetup(); err != nil {
+		return nil, err
+	}
+
+	calculateID(definition)
+
+	return definition, nil
 }
