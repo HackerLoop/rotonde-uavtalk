@@ -168,8 +168,7 @@ type Definition struct {
 	Fields FieldsSlice `xml:"field" json:"fields"`
 }
 
-// FinishSetup has to be called on a definition once the fields are setup
-func (definition *Definition) FinishSetup() error {
+func (definition *Definition) fieldProcess() error {
 	var err error
 	// fields post process
 	for _, field := range definition.Fields {
@@ -210,7 +209,14 @@ func (definition *Definition) FinishSetup() error {
 			field.Name, field.CloneOf = name, cloneOf
 		}
 	}
+	return nil
+}
 
+// FinishSetup has to be called on a definition once the fields are setup
+func (definition *Definition) FinishSetup() error {
+	if err := definition.fieldProcess(); err != nil {
+		return err
+	}
 	sort.Stable(definition.Fields)
 	return nil
 }
@@ -243,7 +249,7 @@ func NewMetaDefinition(parent *Definition) (*Definition, error) {
 	meta.Fields = append(meta.Fields, &FieldDefinition{Name: "periodGCS", Units: "ms", Type: "uint16"})
 	meta.Fields = append(meta.Fields, &FieldDefinition{Name: "periodLog", Units: "ms", Type: "uint16"})
 
-	if err := meta.FinishSetup(); err != nil {
+	if err := meta.fieldProcess(); err != nil {
 		return nil, err
 	}
 

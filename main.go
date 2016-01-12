@@ -103,6 +103,7 @@ func initAuthHandlers(root *handlers.HandlerManager, fcInChan chan uavtalk.Packe
 							// TODO create rotonde definition
 							log.Info("sending definition", definition.Name)
 							sendAsRotondeDefinitions(definition, client)
+							sendAsRotondeDefinitions(definition.Meta, client)
 						}
 					}
 
