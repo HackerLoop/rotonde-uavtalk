@@ -1,0 +1,7 @@
+{
+  "type":  "action",
+  "payload": {
+    "identifier": "GET_SYSTEMALARMS",
+    "data": {}
+  }
+}

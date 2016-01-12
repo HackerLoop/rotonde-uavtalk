@@ -1,0 +1,103 @@
+{
+  "type": "action",
+  "payload": {
+    "identifier": "SET_MANUALCONTROLSETTINGS",
+    "data": 
+    {
+      "ArmTime": "1000",
+      "ArmTimeoutAutonomous": "DISABLED",
+      "ArmedTimeout": 0,
+      "Arming": "Always Armed",
+      "ChannelGroups": {
+        "Accessory0": "None",
+        "Accessory1": "None",
+        "Accessory2": "None",
+        "Arming": "None",
+        "Collective": "None",
+        "FlightMode": "None",
+        "Pitch": "GCS",
+        "Roll": "GCS",
+        "Throttle": "GCS",
+        "Yaw": "GCS"
+      },
+      "ChannelMax": {
+        "Accessory0": 0,
+        "Accessory1": 0,
+        "Accessory2": 0,
+        "Arming": 0,
+        "Collective": 0,
+        "FlightMode": 0,
+        "Pitch": 2000,
+        "Roll": 2000,
+        "Throttle": 2000,
+        "Yaw": 2000
+      },
+      "ChannelMin": {
+        "Accessory0": 0,
+        "Accessory1": 0,
+        "Accessory2": 0,
+        "Arming": 0,
+        "Collective": 0,
+        "FlightMode": 0,
+        "Pitch": 0,
+        "Roll": 0,
+        "Throttle": 0,
+        "Yaw": 0
+      },
+      "ChannelNeutral": {
+        "Accessory0": 0,
+        "Accessory1": 0,
+        "Accessory2": 0,
+        "Arming": 0,
+        "Collective": 0,
+        "FlightMode": 0,
+        "Pitch": 1000,
+        "Roll": 1000,
+        "Throttle": 0,
+        "Yaw": 1000
+      },
+      "ChannelNumber": {
+        "Accessory0": 0,
+        "Accessory1": 0,
+        "Accessory2": 0,
+        "Arming": 0,
+        "Collective": 0,
+        "FlightMode": 0,
+        "Pitch": 3,
+        "Roll": 2,
+        "Throttle": 1,
+        "Yaw": 4
+      },
+      "Deadband": 0,
+      "DisarmTime": "2000",
+      "FlightModeNumber": 1,
+      "FlightModePosition": [
+        "Stabilized1",
+      "Stabilized1",
+      "Stabilized1",
+      "Stabilized1",
+      "Stabilized1",
+      "Stabilized1"
+        ],
+      "RssiChannelNumber": 0,
+      "RssiMax": 2000,
+      "RssiMin": 1000,
+      "RssiType": "None",
+      "Stabilization1Settings": {
+        "Pitch": "Attitude",
+        "Roll": "Attitude",
+        "Yaw": "Rate"
+      },
+      "Stabilization2Settings": {
+        "Pitch": "Attitude",
+        "Roll": "Attitude",
+        "Yaw": "Rate"
+      },
+      "Stabilization3Settings": {
+        "Pitch": "Attitude",
+        "Roll": "Attitude",
+        "Yaw": "Rate"
+      }
+    }
+  }
+}
