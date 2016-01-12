@@ -167,7 +167,7 @@ func newPacketFromBinary(binaryPacket []byte) (*Packet, error) {
 	return &buffer, nil
 }
 
-func newPacket(definition *Definition, cmd uint8, instanceID uint16, data map[string]interface{}) *Packet {
+func NewPacket(definition *Definition, cmd uint8, instanceID uint16, data map[string]interface{}) *Packet {
 	buffer := Packet{}
 	buffer.Definition = definition
 	buffer.Cmd = cmd

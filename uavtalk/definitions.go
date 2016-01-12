@@ -30,7 +30,7 @@ func (definitions Definitions) GetDefinitionForObjectID(objectID uint32) (*Defin
 // GetDefinitionForName _
 func (definitions Definitions) GetDefinitionForName(name string) (*Definition, error) {
 	for _, definition := range definitions {
-		if definition.Name == name {
+		if strings.ToLower(definition.Name) == strings.ToLower(name) {
 			return definition, nil
 		}
 	}

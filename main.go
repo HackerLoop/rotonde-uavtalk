@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/HackerLoop/rotonde-client.go"
 	"github.com/HackerLoop/rotonde-uavtalk/uavtalk"
+	"github.com/HackerLoop/rotonde/shared"
 	log "github.com/Sirupsen/logrus"
 	"github.com/vitaminwater/handlers.go"
 )
@@ -100,6 +102,7 @@ func initAuthHandlers(root *handlers.HandlerManager, fcInChan chan uavtalk.Packe
 						} else {
 							// TODO create rotonde definition
 							log.Info("sending definition", definition.Name)
+							sendAsRotondeDefinitions(definition, client)
 						}
 					}
 
@@ -164,6 +167,9 @@ func initStreamHandlers(root *handlers.HandlerManager, fcInChan chan uavtalk.Pac
 				fcInChan <- uavtalk.CreatePersistObject(p.Definition, p.InstanceID)
 			}
 		}
+		if event := toRotondePacket(p); event != nil {
+			client.SendMessage(event)
+		}
 		return true
 	}
 
@@ -183,7 +189,13 @@ func main() {
 	fcOutChan := make(chan uavtalk.Packet, 100)
 
 	client := client.NewClient("ws://127.0.0.1:4224")
-	//rootIn := handlers.NewHandlerManager(chanCast(fcInChan), handlers.PassAll, handlers.Noop, handlers.Noop)
+	client.OnAction(func(i interface{}) bool {
+		log.Info(i)
+		if p := toUAVTalkPacket(i); p != nil {
+			fcInChan <- *p
+		}
+		return true
+	})
 
 	uavtalk.LoadDefinitions(os.Args[1])
 	go uavtalk.Start(fcInChan, fcOutChan)
@@ -206,4 +218,85 @@ func chanCast(inChan chan uavtalk.Packet) chan interface{} {
 		}
 	}()
 	return outChan
+}
+
+func sendAsRotondeDefinitions(definition *uavtalk.Definition, client *client.Client) {
+	name := strings.ToUpper(definition.Name)
+
+	getter := rotonde.Definition{fmt.Sprintf("GET_%s", name), "action", false, []*rotonde.FieldDefinition{}}
+	if definition.SingleInstance == false {
+		getter.PushField("index", "number", "")
+	}
+	client.AddLocalDefinition(&getter)
+
+	setter := rotonde.Definition{fmt.Sprintf("SET_%s", name), "action", false, []*rotonde.FieldDefinition{}}
+	if definition.SingleInstance == false {
+		setter.PushField("index", "number", "")
+	}
+	for _, field := range definition.Fields {
+		setter.PushField(field.Name, field.Type, field.Units)
+	}
+	client.AddLocalDefinition(&setter)
+
+	update := rotonde.Definition{name, "event", false, []*rotonde.FieldDefinition{}}
+	if definition.SingleInstance == false {
+		update.PushField("index", "number", "")
+	}
+	for _, field := range definition.Fields {
+		update.PushField(field.Name, field.Type, field.Units)
+	}
+	client.AddLocalDefinition(&update)
+}
+
+func toRotondePacket(p uavtalk.Packet) interface{} {
+	if p.Cmd != uavtalk.ObjectCmd && p.Cmd != uavtalk.ObjectCmdWithAck {
+		return nil
+	}
+	name := strings.ToUpper(p.Definition.Name)
+	event := rotonde.Event{name, p.Data}
+	return event
+}
+
+func toUAVTalkPacket(i interface{}) *uavtalk.Packet {
+	action, ok := i.(rotonde.Action)
+	if ok == false {
+		return nil
+	}
+
+	name := action.Identifier[4:]
+	definition, err := uavtalk.AllDefinitions.GetDefinitionForName(name)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var data map[string]interface{}
+	var cmd uint8
+	if strings.HasPrefix(action.Identifier, "GET_") {
+		cmd = uavtalk.ObjectRequest
+		data = map[string]interface{}{}
+	} else if strings.HasPrefix(action.Identifier, "SET_") {
+		if definition.Settings == true {
+			cmd = uavtalk.ObjectCmdWithAck
+		} else {
+			cmd = uavtalk.ObjectCmd
+		}
+		data = action.Data
+	}
+
+	var instanceId uint16 = 0
+	if definition.SingleInstance == false {
+		index, ok := data["index"]
+		if ok == false {
+			instanceId = 0
+		} else {
+			delete(data, "index")
+			value, ok := index.(float64)
+			if ok == false {
+				instanceId = 0
+			} else {
+				instanceId = uint16(value)
+			}
+		}
+	}
+	return uavtalk.NewPacket(definition, cmd, instanceId, data)
 }
