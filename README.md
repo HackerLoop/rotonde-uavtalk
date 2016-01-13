@@ -394,12 +394,5 @@ What if you could have a better estimation, like when you are close enough to th
 So that's the whole point of the modular architecture that Taulabs offers, some modules work perfectly on the flight controller, but others might require much more processing power, or an internet connection, these one need be on an actual computer, some other modules might even require to be in the cloud.
 The modular architecture provides a clean abstraction that makes all this possible, just connect to the bridge, manipulate UAVObjects, and your are part of the whole system.
 
-#Contributors
-* Constantin Clauzel
-* Hakim Amrani Montanelli
-* Charles Passet
-* Jh Chabran
-* Valentin Squirelo
-
 #Licence
 [Apache licence 2.0 ](https://github.com/openskybot/skybot-router/blob/master/licence.md)
