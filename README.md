@@ -1,3 +1,11 @@
+# This is all outdated, complete rewrite is under way
+
+but things are working:)
+
+[https://www.youtube.com/watch?v=pWtt75V-CcA](https://www.youtube.com/watch?v=pWtt75V-CcA)
+
+------
+
 # skybot-router
 
 Control drone as a device through JSON websocket API.
