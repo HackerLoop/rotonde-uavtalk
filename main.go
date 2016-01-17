@@ -31,7 +31,6 @@ func (l authPacketList) contains(name string) bool {
  */
 
 func initAuthHandlers(root *handlers.HandlerManager, fcInChan chan uavtalk.Packet, client *client.Client) *handlers.HandlerManager {
-
 	sessionManaging, err := uavtalk.AllDefinitions.GetDefinitionForName("SessionManaging")
 	if err != nil {
 		log.Fatal(err)

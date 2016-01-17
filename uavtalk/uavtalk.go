@@ -215,17 +215,11 @@ func Start(inChan chan Packet, outChan chan Packet) {
 	}
 }
 
-func recoverChanClosed(dir string) {
-	if e := recover(); e != nil {
-		log.Info("Recovered in start, direction: ", dir, e)
-	}
-}
-
 func start(inChan chan Packet, outChan chan Packet) {
 	var link Linker
 	var err error
 	for {
-		link, err = NewUSBLink() // newUSBLink() ou newTCPLink()
+		link, err = NewTCPLink() // newUSBLink() ou newTCPLink()
 		if err != nil {
 			log.Warning(err)
 			time.Sleep(1 * time.Second)
@@ -234,18 +228,15 @@ func start(inChan chan Packet, outChan chan Packet) {
 		break
 	}
 
-	linkError := make(chan error)
-	defer close(linkError)
 	defer link.Close()
 	// From Controller
 	go func() {
-		defer recoverChanClosed("Out")
 		packet := make([]byte, MaxHIDFrameSize)
 		buffer := make([]byte, 0, 4096)
 		for {
 			n, err := link.Read(packet)
 			if err != nil {
-				linkError <- err
+				log.Fatal(err)
 				return
 			}
 			if n == 0 {
@@ -281,7 +272,6 @@ func start(inChan chan Packet, outChan chan Packet) {
 
 	// To Controller
 	go func() {
-		defer recoverChanClosed("In")
 		for {
 			var binaryPacket []byte
 			select {
@@ -295,14 +285,12 @@ func start(inChan chan Packet, outChan chan Packet) {
 
 			_, err = link.Write(binaryPacket)
 			if err != nil {
-				linkError <- err
+				log.Fatal(err)
 				return
 			}
 		}
 	}()
-
-	err = <-linkError
-	log.Warning(err)
+	select {}
 }
 
 // newDefinitions loads all xml files from a directory
