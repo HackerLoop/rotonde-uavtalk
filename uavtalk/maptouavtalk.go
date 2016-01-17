@@ -17,6 +17,11 @@ func valueForEnumString(field *FieldDefinition, option string) (uint8, error) {
 }
 
 func writeToUAVTalk(field *FieldDefinition, writer *bytes.Buffer, value interface{}) error {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered in f", r)
+		}
+	}()
 	typeInfo := field.FieldTypeInfo
 	var result interface{}
 	switch typeInfo.Name {
