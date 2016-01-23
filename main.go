@@ -119,32 +119,29 @@ func initAuthHandlers(root *handlers.HandlerManager, fcInChan chan uavtalk.Packe
 							if spent < SESSION_PAUSE {
 								time.Sleep(time.Duration(float64(SESSION_PAUSE)-spent) * time.Second)
 							}
-							go func() {
-								for _, definition := range activeDefinitions {
-									log.Info("sending definition", definition.Name)
-									sendAsRotondeDefinitions(definition, client)
-									sendAsRotondeDefinitions(definition.Meta, client)
+							for _, definition := range activeDefinitions {
+								modes := 0
+								log.Info("sending definition", definition.Name)
+
+								if definition.TelemetryFlight.Acked {
+									modes |= 1 << 2
 								}
-							}()
-							go func() {
-								for _, definition := range activeDefinitions {
-									modes := 0
-									log.Info("sending definition", definition.Name)
-
-									if definition.TelemetryFlight.Acked {
-										modes |= 1 << 2
-									}
-									if definition.TelemetryGcs.Acked {
-										modes |= 1 << 3
-									}
-
-									meta["modes"] = float64(modes)
-
-									setter := uavtalk.CreateObjectSetter(definition.Meta.Name, 0, meta)
-									fcInChan <- *setter
-									time.Sleep(10 * time.Millisecond)
+								if definition.TelemetryGcs.Acked {
+									modes |= 1 << 3
 								}
-							}()
+
+								meta["modes"] = float64(modes)
+
+								setter := uavtalk.CreateObjectSetter(definition.Meta.Name, 0, meta)
+								fcInChan <- *setter
+								time.Sleep(10 * time.Millisecond)
+							}
+
+							for _, definition := range activeDefinitions {
+								log.Info("sending definition", definition.Name)
+								sendAsRotondeDefinitions(definition, client)
+								sendAsRotondeDefinitions(definition.Meta, client)
+							}
 						}()
 
 						return true
