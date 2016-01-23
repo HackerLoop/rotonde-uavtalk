@@ -16,7 +16,7 @@ func CreateObjectSetter(name string, index int, data map[string]interface{}) *Pa
 	if err != nil {
 		log.Fatal(err)
 	}
-	packet := NewPacket(definition, ObjectRequest, uint16(index), data)
+	packet := NewPacket(definition, ObjectCmd, uint16(index), data)
 	return packet
 }
 

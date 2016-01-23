@@ -13,6 +13,8 @@ import (
 	"github.com/vitaminwater/handlers.go"
 )
 
+const SESSION_PAUSE = 5
+
 type authPacketList []string
 
 var authPackets = authPacketList{"SessionManaging", "FlightTelemetryStats", "GCSTelemetryStats"}
@@ -71,10 +73,12 @@ func initAuthHandlers(root *handlers.HandlerManager, fcInChan chan uavtalk.Packe
 
 	/**
 	 * TODO: This is getting messy, and the initial object retrieval is not done, but the
-	 * process is still engaged on fc side, resulting in a 5 seconds pause of the stream,
+	 * process is still engaged on fc side, resulting in a SESSION_PAUSE seconds pause of the stream,
 	 * which should be avoidable.
 	 */
 
+	var start time.Time
+	var activeDefinitions []*uavtalk.Definition
 	sessionHandler := func(i interface{}) bool {
 		p := i.(uavtalk.Packet)
 		if p.Definition == flightTelemetryStats {
@@ -100,15 +104,49 @@ func initAuthHandlers(root *handlers.HandlerManager, fcInChan chan uavtalk.Packe
 							log.Warning(err)
 						} else {
 							// TODO create rotonde definition
-							log.Info("sending definition", definition.Name)
-							sendAsRotondeDefinitions(definition, client)
-							sendAsRotondeDefinitions(definition.Meta, client)
+							activeDefinitions = append(activeDefinitions, definition)
 						}
 					}
 
 					if currentObjectID >= numberOfObjects {
 						sessionID = sessionID
 						log.Info("Available Definitions fetch done.")
+						spent := time.Now().Sub(start).Seconds()
+						go func() {
+							meta := map[string]interface{}{
+								"modes": float64(0), "periodFlight": float64(0), "periodGCS": float64(0), "periodLog": float64(0),
+							}
+							if spent < SESSION_PAUSE {
+								time.Sleep(time.Duration(float64(SESSION_PAUSE)-spent) * time.Second)
+							}
+							go func() {
+								for _, definition := range activeDefinitions {
+									log.Info("sending definition", definition.Name)
+									sendAsRotondeDefinitions(definition, client)
+									sendAsRotondeDefinitions(definition.Meta, client)
+								}
+							}()
+							go func() {
+								for _, definition := range activeDefinitions {
+									modes := 0
+									log.Info("sending definition", definition.Name)
+
+									if definition.TelemetryFlight.Acked {
+										modes |= 1 << 2
+									}
+									if definition.TelemetryGcs.Acked {
+										modes |= 1 << 3
+									}
+
+									meta["modes"] = float64(modes)
+
+									setter := uavtalk.CreateObjectSetter(definition.Meta.Name, 0, meta)
+									fcInChan <- *setter
+									time.Sleep(10 * time.Millisecond)
+								}
+							}()
+						}()
+
 						return true
 					}
 
@@ -127,8 +165,10 @@ func initAuthHandlers(root *handlers.HandlerManager, fcInChan chan uavtalk.Packe
 						log.Info("Recovering ", sessionID)
 						return true
 					}
+					start = time.Now()
 					sessionManagingPacket := uavtalk.CreateSessionManagingPacket(0, 0)
 					fcInChan <- sessionManagingPacket
+					activeDefinitions = make([]*uavtalk.Definition, 0, 100)
 				}
 			} else if p.Cmd == uavtalk.ObjectAck {
 				log.Info("Received Ack for SessionManaging")
@@ -190,7 +230,6 @@ func main() {
 
 	client := client.NewClient("ws://127.0.0.1:4224")
 	client.OnAction(func(i interface{}) bool {
-		log.Info(i)
 		if p := toUAVTalkPacket(i); p != nil {
 			fcInChan <- *p
 		}
