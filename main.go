@@ -13,7 +13,7 @@ import (
 	"github.com/vitaminwater/handlers.go"
 )
 
-const SESSION_PAUSE = 5
+const SESSION_PAUSE = 7
 
 type authPacketList []string
 
@@ -134,7 +134,7 @@ func initAuthHandlers(root *handlers.HandlerManager, fcInChan chan uavtalk.Packe
 
 								setter := uavtalk.CreateObjectSetter(definition.Meta.Name, 0, meta)
 								fcInChan <- *setter
-								time.Sleep(10 * time.Millisecond)
+								time.Sleep(50 * time.Millisecond)
 							}
 
 							for _, definition := range activeDefinitions {
