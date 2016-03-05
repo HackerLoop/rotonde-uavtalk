@@ -219,7 +219,7 @@ func start(inChan chan Packet, outChan chan Packet) {
 	var link Linker
 	var err error
 	for {
-		link, err = NewTCPLink() // newUSBLink() ou newTCPLink()
+		link, err = NewUSBLink() // newUSBLink() ou newTCPLink()
 		if err != nil {
 			log.Warning(err)
 			time.Sleep(1 * time.Second)
