@@ -1,4 +1,4 @@
-# This is all outdated, complete rewrite is under way
+# This README is outdated, complete rewrite is under way
 
 but things are working:)
 
